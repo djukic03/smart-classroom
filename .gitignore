@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+.mypy_cache/
 
 # Virtual environments
 .venv
@@ -14,3 +15,13 @@ wheels/
 
 # Environment variables
 .env
+
+# Docker
+pgdata/
+
+# Ignore IDE-specific files
+.claude
+CLAUDE.md
+
+# Documentation
+Dokumentacjia završnog rada - Nemanja Đukić.docx
