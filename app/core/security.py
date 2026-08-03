@@ -2,10 +2,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from pwdlib import PasswordHash
 
 from app.core.config import settings
 
 ALGORITHM = "HS256"
+
+_password_hash = PasswordHash.recommended()
+
+
+def hash_password(password: str) -> str:
+    return _password_hash.hash(password)
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    return _password_hash.verify(password, hashed)
 
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:

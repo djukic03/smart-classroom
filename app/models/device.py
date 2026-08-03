@@ -18,7 +18,7 @@ class Device(Base):
     __tablename__ = "devices"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # api_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)   za autentifikaciju uređaja
+    # api_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)   za autentifikaciju uređaja - baviti se vise kad budem prikljucivao uređaje
     classroom_id: Mapped[int] = mapped_column(ForeignKey("classrooms.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[DeviceStatus] = mapped_column(Enum(DeviceStatus), default=DeviceStatus.INACTIVE, nullable=False)
