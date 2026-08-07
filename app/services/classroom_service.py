@@ -18,8 +18,8 @@ class ClassroomService:
             raise NotFoundError(ENTITY, classroom_id)
         return classroom
 
-    async def list(self, *, limit: int = 100, offset: int = 0) -> Sequence[Classroom]:
-        return await self._repo.list(limit=limit, offset=offset)
+    async def list(self) -> Sequence[Classroom]:
+        return await self._repo.list()
 
     async def create(self, data: ClassroomCreate) -> Classroom:
         if await self._repo.get_by_name(data.name) is not None:

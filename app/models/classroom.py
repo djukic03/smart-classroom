@@ -13,4 +13,4 @@ class Classroom(Base):
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str | None] = mapped_column(String(255))
 
-    devices: Mapped[list[Device]] = relationship()
+    devices: Mapped[list[Device]] = relationship(cascade="all, delete-orphan")

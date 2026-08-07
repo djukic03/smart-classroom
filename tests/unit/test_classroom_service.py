@@ -20,8 +20,8 @@ class FakeClassroomRepository:
     async def get_by_name(self, name: str) -> Classroom | None:
         return next((c for c in self.items if c.name == name), None)
 
-    async def list(self, *, limit: int = 100, offset: int = 0) -> Sequence[Classroom]:
-        return self.items[offset : offset + limit]
+    async def list(self) -> Sequence[Classroom]:
+        return self.items
 
     async def add(self, classroom: Classroom) -> Classroom:
         classroom.id = self._next_id
@@ -121,11 +121,11 @@ async def test_delete_unknown_raises_not_found() -> None:
         await service.delete(1)
 
 
-async def test_list_respects_limit_and_offset() -> None:
+async def test_list_returns_all_classrooms() -> None:
     service, _ = make_service(
         *(Classroom(id=i, name=f"A-10{i}") for i in range(1, 6))
     )
 
-    page = await service.list(limit=2, offset=2)
+    found = await service.list()
 
-    assert [c.name for c in page] == ["A-103", "A-104"]
+    assert [c.name for c in found] == ["A-101", "A-102", "A-103", "A-104", "A-105"]

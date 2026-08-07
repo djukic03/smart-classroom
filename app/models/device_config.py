@@ -15,5 +15,5 @@ class DeviceConfig(Base):
     enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
     on_schedule: Mapped[bool] = mapped_column(default=False, nullable=False)
 
-    sensors: Mapped[list[SensorConfig]] = relationship()
-    schedules: Mapped[list[Schedule]] = relationship()
+    sensors: Mapped[list[SensorConfig]] = relationship(cascade="all, delete-orphan")
+    schedules: Mapped[list[Schedule]] = relationship(cascade="all, delete-orphan")

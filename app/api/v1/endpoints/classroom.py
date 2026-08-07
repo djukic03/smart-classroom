@@ -10,8 +10,8 @@ admin_only = [Depends(require_admin)]
 
 
 @router.get("/", response_model=list[ClassroomRead])
-async def list_classrooms(service: ClassroomServiceDep, limit: Annotated[int, Query(ge=1, le=200)] = 100, offset: Annotated[int, Query(ge=0)] = 0) -> object:
-    return await service.list(limit=limit, offset=offset)
+async def list_classrooms(service: ClassroomServiceDep) -> object:
+    return await service.list()
 
 
 @router.post("/", response_model=ClassroomRead, status_code=status.HTTP_201_CREATED, dependencies=admin_only)

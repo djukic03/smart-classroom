@@ -40,23 +40,21 @@ app.add_middleware(
 @app.exception_handler(NotFoundError)
 async def _not_found_handler(request: Request, exc: NotFoundError) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(exc)}
+        status_code=status.HTTP_404_NOT_FOUND, 
+        content={"detail": str(exc)}
     )
 
 
 @app.exception_handler(AlreadyExistsError)
-async def _already_exists_handler(
-    request: Request, exc: AlreadyExistsError
-) -> JSONResponse:
+async def _already_exists_handler(request: Request, exc: AlreadyExistsError) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)}
+        status_code=status.HTTP_409_CONFLICT, 
+        content={"detail": str(exc)}
     )
 
 
 @app.exception_handler(AuthenticationError)
-async def _authentication_handler(
-    request: Request, exc: AuthenticationError
-) -> JSONResponse:
+async def _authentication_handler(request: Request, exc: AuthenticationError) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
         content={"detail": str(exc)},
@@ -65,11 +63,10 @@ async def _authentication_handler(
 
 
 @app.exception_handler(PermissionDeniedError)
-async def _permission_denied_handler(
-    request: Request, exc: PermissionDeniedError
-) -> JSONResponse:
+async def _permission_denied_handler(request: Request, exc: PermissionDeniedError) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_403_FORBIDDEN, content={"detail": str(exc)}
+        status_code=status.HTTP_403_FORBIDDEN, 
+        content={"detail": str(exc)}
     )
 
 

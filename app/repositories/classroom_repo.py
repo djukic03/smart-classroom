@@ -22,8 +22,8 @@ class ClassroomRepository:
         stmt = select(Classroom).where(Classroom.name == name)
         return await self._db.scalar(stmt)
 
-    async def list(self, *, limit: int = 100, offset: int = 0) -> Sequence[Classroom]:
-        stmt = select(Classroom).order_by(Classroom.id).limit(limit).offset(offset)
+    async def list(self) -> Sequence[Classroom]:
+        stmt = select(Classroom).order_by(Classroom.id)
         return (await self._db.scalars(stmt)).all()
 
     async def add(self, classroom: Classroom) -> Classroom:

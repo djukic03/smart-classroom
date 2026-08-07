@@ -25,5 +25,5 @@ class Device(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    config: Mapped[DeviceConfig | None] = relationship()
-    measurements: Mapped[list[Measurement]] = relationship()
+    config: Mapped[DeviceConfig | None] = relationship(cascade="all, delete-orphan", single_parent=True)
+    measurements: Mapped[list[Measurement]] = relationship(cascade="all, delete-orphan")

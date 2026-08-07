@@ -113,3 +113,56 @@ async def test_delete_unknown_returns_404(admin_client: AsyncClient) -> None:
     r = await admin_client.delete("/api/v1/classrooms/999")
 
     assert r.status_code == 404
+
+
+async def test_delete_classroom_also_deletes_its_devices(
+    admin_client: AsyncClient,
+) -> None:
+    room = (
+        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+    ).json()
+    first = (
+        await admin_client.post(
+            "/api/v1/devices/", json={"classroom_id": room["id"], "name": "esp32-1"}
+        )
+    ).json()
+    second = (
+        await admin_client.post(
+            "/api/v1/devices/", json={"classroom_id": room["id"], "name": "esp32-2"}
+        )
+    ).json()
+
+    deleted = await admin_client.delete(f"/api/v1/classrooms/{room['id']}")
+
+    assert deleted.status_code == 204
+    assert (
+        await admin_client.get(f"/api/v1/devices/{first['id']}")
+    ).status_code == 404
+    assert (
+        await admin_client.get(f"/api/v1/devices/{second['id']}")
+    ).status_code == 404
+
+
+async def test_devices_of_other_classrooms_survive_delete(
+    admin_client: AsyncClient,
+) -> None:
+    doomed = (
+        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+    ).json()
+    kept = (
+        await admin_client.post("/api/v1/classrooms/", json={"name": "A-102"})
+    ).json()
+    await admin_client.post(
+        "/api/v1/devices/", json={"classroom_id": doomed["id"], "name": "esp32-1"}
+    )
+    survivor = (
+        await admin_client.post(
+            "/api/v1/devices/", json={"classroom_id": kept["id"], "name": "esp32-2"}
+        )
+    ).json()
+
+    await admin_client.delete(f"/api/v1/classrooms/{doomed['id']}")
+
+    assert (
+        await admin_client.get(f"/api/v1/devices/{survivor['id']}")
+    ).status_code == 200
