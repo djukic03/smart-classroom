@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = []
     log_level: str
     log_format: Literal["json", "console"] = "json"
+    mqtt_username: str
+    mqtt_password: str
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

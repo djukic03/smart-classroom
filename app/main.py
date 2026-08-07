@@ -16,7 +16,7 @@ from app.core.logging import configure_logging
 from app.core.database import dispose_engine
 from app.core.middleware import RequestIdMiddleware
 
-from app.api.v1.endpoints import auth, classroom, health
+from app.api.v1.endpoints import auth, classroom, mqtt, health
 
 configure_logging()
 
@@ -73,3 +73,4 @@ async def _permission_denied_handler(request: Request, exc: PermissionDeniedErro
 app.include_router(health.router, prefix="/health")
 app.include_router(auth.router, prefix="/api/v1/auth")
 app.include_router(classroom.router, prefix="/api/v1/classrooms")
+app.include_router(mqtt.router, prefix="/api/v1/mqtt")

@@ -11,8 +11,10 @@ from app.core.security import decode_access_token
 from app.models.user import Role, User
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.user_repo import UserRepository
+from app.repositories.device_repo import DeviceRepository
 from app.services.classroom_service import ClassroomService
 from app.services.user_service import UserService
+from app.services.mqtt_service import MQTTService
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -70,3 +72,17 @@ async def require_admin(user: CurrentUser) -> User:
 
 
 AdminUser = Annotated[User, Depends(require_admin)]
+
+
+def get_device_repository(db: DbSession) -> DeviceRepository:
+    return DeviceRepository(db)
+
+
+DeviceRepositoryDep = Annotated[DeviceRepository, Depends(get_device_repository)]
+
+
+def get_mqtt_service(repo: DeviceRepositoryDep) -> MQTTService:
+    return MQTTService(repo)
+
+
+MQTTServiceDep = Annotated[MQTTService, Depends(get_mqtt_service)]
