@@ -1,6 +1,5 @@
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 from app.api.v1.dependencies import ClassroomServiceDep, get_current_user, require_admin
 from app.schemas.classroom import ClassroomCreate, ClassroomRead, ClassroomUpdate
@@ -14,7 +13,12 @@ async def list_classrooms(service: ClassroomServiceDep) -> object:
     return await service.list()
 
 
-@router.post("/", response_model=ClassroomRead, status_code=status.HTTP_201_CREATED, dependencies=admin_only)
+@router.post(
+    "/",
+    response_model=ClassroomRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=admin_only,
+)
 async def create_classroom(data: ClassroomCreate, service: ClassroomServiceDep) -> object:
     return await service.create(data)
 
@@ -25,7 +29,9 @@ async def get_classroom(classroom_id: int, service: ClassroomServiceDep) -> obje
 
 
 @router.patch("/{classroom_id}", response_model=ClassroomRead, dependencies=admin_only)
-async def update_classroom(classroom_id: int, data: ClassroomUpdate, service: ClassroomServiceDep) -> object:
+async def update_classroom(
+    classroom_id: int, data: ClassroomUpdate, service: ClassroomServiceDep
+) -> object:
     return await service.update(classroom_id, data)
 
 

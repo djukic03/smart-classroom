@@ -25,3 +25,8 @@ class AuthenticationError(AppError):
 class PermissionDeniedError(AppError):
     def __init__(self, detail: str = "Nemate pravo pristupa") -> None:
         super().__init__(detail)
+
+
+class MeasurementRejectedError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)

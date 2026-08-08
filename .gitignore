@@ -7,6 +7,7 @@ wheels/
 *.egg-info
 .mypy_cache/
 .pytest_cache/
+.ruff_cache/
 
 # Virtual environments
 .venv
@@ -16,6 +17,10 @@ wheels/
 
 # Environment variables
 .env
+
+# Certificates
+mosquitto/certs/
+mosquitto/ca/
 
 # Docker
 pgdata/

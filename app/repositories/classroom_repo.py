@@ -20,7 +20,7 @@ class ClassroomRepository:
 
     async def get_by_name(self, name: str) -> Classroom | None:
         stmt = select(Classroom).where(Classroom.name == name)
-        return await self._db.scalar(stmt)
+        return (await self._db.scalars(stmt)).first()
 
     async def list(self) -> Sequence[Classroom]:
         stmt = select(Classroom).order_by(Classroom.id)

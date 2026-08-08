@@ -11,7 +11,6 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-db}"]
       interval: 5s
@@ -38,10 +37,10 @@ services:
     container_name: mosquitto
     volumes:
       - ./mosquitto/config/mosquitto.conf:/etc/mosquitto/mosquitto.conf
+      - ./mosquitto/certs:/mosquitto/certs:ro
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
     ports:
-      - 1883:1883
       - 8883:8883
     depends_on:
       - app

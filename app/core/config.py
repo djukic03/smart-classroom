@@ -14,7 +14,15 @@ class Settings(BaseSettings):
     log_level: str
     log_format: Literal["json", "console"] = "json"
     mqtt_username: str
-    mqtt_password: str
+    mqtt_password: SecretStr
+    mqtt_host: str = "mosquitto"
+    mqtt_port: int = 8883
+    mqtt_ca_file: str = "mosquitto/certs/ca.crt"
+    mqtt_client_id: str = "smart-classroom-backend"
+    mqtt_keepalive_seconds: int = 60
+    mqtt_reconnect_seconds: float = 5.0
+    mqtt_consumer_enabled: bool = True
+    mqtt_hook_allowed_hosts: list[str] = ["mosquitto"]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

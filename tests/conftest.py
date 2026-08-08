@@ -1,8 +1,12 @@
 import os
 
 os.environ.setdefault("SECRET_KEY", "test-secret-0123456789abcdef0123456789abcdef")
+os.environ.setdefault("MQTT_USERNAME", "test-backend")
+os.environ.setdefault("MQTT_PASSWORD", "test-backend-password")
+# httpx ASGITransport se predstavlja kao 127.0.0.1 -- to je "broker" u testovima.
+os.environ.setdefault("MQTT_HOOK_ALLOWED_HOSTS", '["127.0.0.1"]')
 
-from collections.abc import AsyncGenerator  # noqa: E402
+from collections.abc import AsyncGenerator, Awaitable, Callable  # noqa: E402
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
@@ -15,22 +19,24 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402
     create_async_engine,
 )
 
+# Uvoz modula sa modelima popunjava `Base.metadata` -- bez toga `create_all`
+# u `engine` fixture-u ne bi napravio nijednu tabelu.
+import app.models.anomaly_log  # noqa: E402, F401
+import app.models.audit_log  # noqa: E402, F401
+import app.models.classroom  # noqa: E402, F401
+import app.models.device  # noqa: E402, F401
+import app.models.device_config  # noqa: E402, F401
+import app.models.measurement  # noqa: E402, F401
+import app.models.schedule  # noqa: E402, F401
+import app.models.sensor_config  # noqa: E402, F401
+import app.models.user  # noqa: E402, F401
 from app.core.config import settings  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.classroom import Classroom  # noqa: E402
+from app.models.device import Device, DeviceStatus  # noqa: E402
 from app.models.user import Role, User  # noqa: E402
-from app.models import (  # noqa: E402, F401
-    anomaly_log,
-    audit_log,
-    classroom,
-    device,
-    device_config,
-    measurement,
-    schedule,
-    sensor_config,
-    user,
-)
 
 
 def _test_database_url() -> str:
@@ -137,3 +143,41 @@ async def admin_client(
     client: AsyncClient, db_session: AsyncSession
 ) -> AsyncClient:
     return await _authorized(client, db_session, "admin@test.rs", Role.ADMIN)
+
+
+ClassroomFactory = Callable[..., Awaitable[Classroom]]
+DeviceFactory = Callable[..., Awaitable[Device]]
+
+
+@pytest.fixture
+def make_classroom(db_session: AsyncSession) -> ClassroomFactory:
+    async def _make(name: str = "A-101", description: str | None = None) -> Classroom:
+        classroom = Classroom(name=name, description=description)
+        db_session.add(classroom)
+        await db_session.flush()
+        return classroom
+
+    return _make
+
+
+@pytest.fixture
+def make_device(db_session: AsyncSession) -> DeviceFactory:
+    """Ubacuje uredjaj direktno u bazu -- REST API za uredjaje jos ne postoji."""
+
+    async def _make(
+        classroom_id: int,
+        username: str = "esp32-1",
+        secret: str = "device-secret-123",
+        status: DeviceStatus = DeviceStatus.ACTIVE,
+    ) -> Device:
+        device = Device(
+            classroom_id=classroom_id,
+            username=username,
+            hashed_password=hash_password(secret),
+            status=status,
+        )
+        db_session.add(device)
+        await db_session.flush()
+        return device
+
+    return _make

@@ -1,4 +1,17 @@
+from collections.abc import Awaitable, Callable
+from typing import Any
+
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.device import Device
+
+DeviceFactory = Callable[..., Awaitable[Any]]
+
+
+async def _device_usernames(session: AsyncSession) -> set[str]:
+    return set((await session.scalars(select(Device.username))).all())
 
 
 async def test_create_returns_201_and_body(admin_client: AsyncClient) -> None:
@@ -117,34 +130,25 @@ async def test_delete_unknown_returns_404(admin_client: AsyncClient) -> None:
 
 async def test_delete_classroom_also_deletes_its_devices(
     admin_client: AsyncClient,
+    db_session: AsyncSession,
+    make_device: DeviceFactory,
 ) -> None:
     room = (
         await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
     ).json()
-    first = (
-        await admin_client.post(
-            "/api/v1/devices/", json={"classroom_id": room["id"], "name": "esp32-1"}
-        )
-    ).json()
-    second = (
-        await admin_client.post(
-            "/api/v1/devices/", json={"classroom_id": room["id"], "name": "esp32-2"}
-        )
-    ).json()
+    await make_device(room["id"], username="esp32-1")
+    await make_device(room["id"], username="esp32-2")
 
     deleted = await admin_client.delete(f"/api/v1/classrooms/{room['id']}")
 
     assert deleted.status_code == 204
-    assert (
-        await admin_client.get(f"/api/v1/devices/{first['id']}")
-    ).status_code == 404
-    assert (
-        await admin_client.get(f"/api/v1/devices/{second['id']}")
-    ).status_code == 404
+    assert await _device_usernames(db_session) == set()
 
 
 async def test_devices_of_other_classrooms_survive_delete(
     admin_client: AsyncClient,
+    db_session: AsyncSession,
+    make_device: DeviceFactory,
 ) -> None:
     doomed = (
         await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
@@ -152,17 +156,9 @@ async def test_devices_of_other_classrooms_survive_delete(
     kept = (
         await admin_client.post("/api/v1/classrooms/", json={"name": "A-102"})
     ).json()
-    await admin_client.post(
-        "/api/v1/devices/", json={"classroom_id": doomed["id"], "name": "esp32-1"}
-    )
-    survivor = (
-        await admin_client.post(
-            "/api/v1/devices/", json={"classroom_id": kept["id"], "name": "esp32-2"}
-        )
-    ).json()
+    await make_device(doomed["id"], username="esp32-1")
+    await make_device(kept["id"], username="esp32-2")
 
     await admin_client.delete(f"/api/v1/classrooms/{doomed['id']}")
 
-    assert (
-        await admin_client.get(f"/api/v1/devices/{survivor['id']}")
-    ).status_code == 200
+    assert await _device_usernames(db_session) == {"esp32-2"}

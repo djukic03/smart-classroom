@@ -18,7 +18,7 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         stmt = select(User).where(User.email == email)
-        return await self._db.scalar(stmt)
+        return (await self._db.scalars(stmt)).first()
 
     async def add(self, user: User) -> User:
         self._db.add(user)

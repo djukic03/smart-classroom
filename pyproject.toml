@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiomqtt>=2.5.1",
     "alembic>=1.18.5",
     "asyncpg>=0.31.0",
     "fastapi[standard]>=0.140.0",
@@ -20,6 +21,41 @@ dependencies = [
 [tool.fastapi]
     entrypoint = "app.main:app"
 
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["app"]
+plugins = ["pydantic.mypy"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "."
+
+[[tool.mypy.overrides]]
+module = ["alembic.*", "tests.*"]
+ignore_errors = true
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort -- redosled importa (stdlib, third-party, local)
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "ASYNC",
+]
+ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/models/*" = ["E501"]
+"tests/*" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
@@ -30,6 +66,8 @@ asyncio_default_test_loop_scope = "session"
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.2",
 ]
