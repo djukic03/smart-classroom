@@ -1,10 +1,3 @@
-"""Ugovor izmedju mosquitto-go-auth plugina i backend-a.
-
-Plugin radi u `json` rezimu: odgovor MORA da bude HTTP 200 sa telom
-`{"ok": bool}`. Status razlicit od 200 plugin tumaci kao gresku backend-a,
-a ne kao uredno odbijanje -- zato svaki test proverava i status i telo.
-"""
-
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 
@@ -35,16 +28,9 @@ def assert_allowed(response: Response, *, expected: bool) -> None:
 
 @pytest.fixture
 async def outsider_client(client: AsyncClient) -> AsyncGenerator[AsyncClient]:
-    """Klijent koji dolazi sa adrese van dozvoljene liste.
-
-    Zavisi od `client` fixture-a da bi preuzeo `get_db` override.
-    """
     transport = ASGITransport(app=app, client=("203.0.113.10", 51234))
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-
-
-# --- ko sme da zove hook endpointe ---------------------------------------
 
 
 async def test_foreign_client_cannot_probe_credentials(
@@ -84,16 +70,12 @@ async def test_foreign_client_cannot_probe_acl(
 async def test_foreign_client_is_refused_before_reaching_the_service(
     outsider_client: AsyncClient,
 ) -> None:
-    """Odbijanje ne sme da otkrije da li username postoji."""
     r = await outsider_client.post(
         AUTH_URL, json={"username": "nepostojeci", "password": "bilo-sta"}
     )
 
     assert r.status_code == 403
     assert "ok" not in r.json()
-
-
-# --- /auth ----------------------------------------------------------------
 
 
 async def test_backend_account_is_authenticated(client: AsyncClient) -> None:
@@ -170,9 +152,6 @@ async def test_malformed_body_returns_422(client: AsyncClient) -> None:
     r = await client.post(AUTH_URL, json={"username": "esp32-1"})
 
     assert r.status_code == 422
-
-
-# --- /acl -----------------------------------------------------------------
 
 
 async def test_device_may_publish_measurements(
@@ -270,7 +249,6 @@ async def test_backend_account_passes_acl_for_any_topic(client: AsyncClient) -> 
 
 
 async def test_acl_ignores_extra_fields_sent_by_plugin(client: AsyncClient) -> None:
-    """Plugin uz `username`, `topic` i `acc` salje i `clientid`."""
     r = await client.post(
         ACL_URL,
         json={

@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from app.core.config import settings
 from app.core.database import async_session
 from app.core.exceptions import MeasurementRejectedError
-from app.core.mqtt import MQTTClient, connect
+from app.core.mqtt import MQTTClient, broker_state, connect
 from app.repositories.device_repo import DeviceRepository
 from app.repositories.measurement_repo import MeasurementRepository
 from app.schemas.measurement import MeasurementPayload
@@ -86,6 +86,7 @@ async def run() -> None:
             logger.info("measurement_consumer_stopped")
             raise
         except aiomqtt.MqttError as exc:
+            broker_state.mark_disconnected(str(exc))
             logger.warning("mqtt_disconnected", error=str(exc), retry_in=delay)
         except Exception:
             logger.exception("measurement_consumer_crashed", retry_in=delay)

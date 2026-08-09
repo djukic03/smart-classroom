@@ -31,12 +31,12 @@ def test_parse_round_trips_with_builder() -> None:
 @pytest.mark.parametrize(
     "topic",
     [
-        "classrooms/212",  # stara sema, bez uredjaja
-        "classrooms/212/esp32-1/co2",  # podtema
-        "classrooms/abc/esp32-1",  # id nije broj
-        "classrooms//esp32-1",  # prazan id
-        "classrooms/212/",  # prazno ime uredjaja
-        "devices/config/esp32-1",  # tudja sema
+        "classrooms/212",
+        "classrooms/212/esp32-1/co2",
+        "classrooms/abc/esp32-1",
+        "classrooms//esp32-1",
+        "classrooms/212/",
+        "devices/config/esp32-1",
         "",
     ],
 )

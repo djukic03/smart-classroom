@@ -1,8 +1,3 @@
-"""Ponasanje pretplatnika pre nego sto se otvori sesija ka bazi.
-
-Jedna neispravna poruka ne sme da obori pretplatu -- sve sto ne prodje proveru
-teme ili tela mora tiho da se odbaci, bez izuzetka koji bi prekinuo petlju.
-"""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -32,7 +27,6 @@ def valid_body(**overrides: object) -> bytes:
 
 @pytest.fixture(autouse=True)
 def fail_if_database_is_touched(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Nijedan od ovih slucajeva ne sme da stigne do baze."""
 
     def explode() -> None:
         raise AssertionError("poruka je stigla do baze iako je neispravna")

@@ -1,42 +1,47 @@
 import os
 
-os.environ.setdefault("SECRET_KEY", "test-secret-0123456789abcdef0123456789abcdef")
-os.environ.setdefault("MQTT_USERNAME", "test-backend")
-os.environ.setdefault("MQTT_PASSWORD", "test-backend-password")
-# httpx ASGITransport se predstavlja kao 127.0.0.1 -- to je "broker" u testovima.
-os.environ.setdefault("MQTT_HOOK_ALLOWED_HOSTS", '["127.0.0.1"]')
+os.environ["SECRET_KEY"] = "test-secret-0123456789abcdef0123456789abcdef"
+os.environ["MQTT_USERNAME"] = "test-backend"
+os.environ["MQTT_PASSWORD"] = "test-backend-password"
+os.environ["MQTT_HOOK_ALLOWED_HOSTS"] = '["127.0.0.1"]'
+os.environ["MQTT_CONSUMER_ENABLED"] = "false"
 
-from collections.abc import AsyncGenerator, Awaitable, Callable  # noqa: E402
+import asyncio
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from pathlib import Path
 
-import pytest  # noqa: E402
-from httpx import ASGITransport, AsyncClient  # noqa: E402
-from sqlalchemy import text  # noqa: E402
-from sqlalchemy.engine.url import make_url  # noqa: E402
-from sqlalchemy.ext.asyncio import (  # noqa: E402
+import pytest
+from alembic.config import Config
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.engine.url import make_url
+from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-# Uvoz modula sa modelima popunjava `Base.metadata` -- bez toga `create_all`
-# u `engine` fixture-u ne bi napravio nijednu tabelu.
-import app.models.anomaly_log  # noqa: E402, F401
-import app.models.audit_log  # noqa: E402, F401
-import app.models.classroom  # noqa: E402, F401
-import app.models.device  # noqa: E402, F401
-import app.models.device_config  # noqa: E402, F401
-import app.models.measurement  # noqa: E402, F401
-import app.models.schedule  # noqa: E402, F401
-import app.models.sensor_config  # noqa: E402, F401
-import app.models.user  # noqa: E402, F401
-from app.core.config import settings  # noqa: E402
-from app.core.database import Base, get_db  # noqa: E402
-from app.core.security import hash_password  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models.classroom import Classroom  # noqa: E402
-from app.models.device import Device, DeviceStatus  # noqa: E402
-from app.models.user import Role, User  # noqa: E402
+import app.models.access_token  # noqa: F401
+import app.models.anomaly_log  # noqa: F401
+import app.models.audit_log  # noqa: F401
+import app.models.classroom  # noqa: F401
+import app.models.device  # noqa: F401
+import app.models.device_config  # noqa: F401
+import app.models.measurement  # noqa: F401
+import app.models.schedule  # noqa: F401
+import app.models.sensor_config  # noqa: F401
+import app.models.user  # noqa: F401
+from alembic import command
+from app.core.config import settings
+from app.core.database import Base, get_db
+from app.core.security import hash_password
+from app.main import app
+from app.models.classroom import Classroom
+from app.models.device import Device, DeviceStatus
+from app.models.user import Role, User
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _test_database_url() -> str:
@@ -64,21 +69,34 @@ async def _create_database_if_missing(url: str) -> None:
     await admin.dispose()
 
 
+def alembic_config(url: str) -> Config:
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(PROJECT_ROOT / "alembic"))
+    config.set_main_option("sqlalchemy.url", url)
+    return config
+
+
+async def _run_migrations(url: str, revision: str) -> None:
+    config = alembic_config(url)
+    if revision == "base":
+        await asyncio.to_thread(command.downgrade, config, "base")
+    else:
+        await asyncio.to_thread(command.upgrade, config, revision)
+
+
 @pytest.fixture(scope="session")
 async def engine() -> AsyncGenerator[AsyncEngine]:
     url = _test_database_url()
     await _create_database_if_missing(url)
 
+    await _run_migrations(url, "base")
+    await _run_migrations(url, "head")
+
     eng = create_async_engine(url)
-    async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
     yield eng
-
-    async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
     await eng.dispose()
+
+    await _run_migrations(url, "base")
 
 
 @pytest.fixture
@@ -162,8 +180,6 @@ def make_classroom(db_session: AsyncSession) -> ClassroomFactory:
 
 @pytest.fixture
 def make_device(db_session: AsyncSession) -> DeviceFactory:
-    """Ubacuje uredjaj direktno u bazu -- REST API za uredjaje jos ne postoji."""
-
     async def _make(
         classroom_id: int,
         username: str = "esp32-1",

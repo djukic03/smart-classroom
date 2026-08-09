@@ -20,7 +20,6 @@ def test_cidr_range_is_allowed() -> None:
 
 
 def test_docker_gateway_is_not_allowed_by_container_entry() -> None:
-    """Saobracaj sa host masine stize sa adrese gateway-a, ne kontejnera."""
     allowlist = HostAllowlist(["172.19.0.4"])
 
     assert not allowlist.is_allowed("172.19.0.1")
@@ -88,7 +87,6 @@ def test_resolution_is_cached_within_ttl(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_new_container_address_is_picked_up_after_ttl(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Kontejner posle ponovnog kreiranja dobija novu adresu."""
     address = "172.19.0.4"
 
     def moving_getaddrinfo(*args: object, **kwargs: object) -> list[object]:

@@ -15,9 +15,6 @@ from app.core.security import (
 PASSWORD = "secret-password-123"
 
 
-# --- lozinke --------------------------------------------------------------
-
-
 def test_hash_is_not_the_plaintext() -> None:
     hashed = hash_password(PASSWORD)
 
@@ -26,7 +23,6 @@ def test_hash_is_not_the_plaintext() -> None:
 
 
 def test_same_password_hashes_differently_each_time() -> None:
-    """Argon2 koristi nasumicnu so -- dva heša iste lozinke se razlikuju."""
     assert hash_password(PASSWORD) != hash_password(PASSWORD)
 
 

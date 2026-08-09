@@ -11,11 +11,6 @@ logger = structlog.get_logger("app.request")
 
 
 class RequestIdMiddleware:
-    """Plain ASGI middleware: extracts/generates X-Request-ID, binds it to the
-    structlog contextvar, echoes it on the response, and emits a structured
-    per-request access log. Avoids BaseHTTPMiddleware's response buffering
-    and background-task pitfalls.
-    """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app

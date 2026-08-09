@@ -1,6 +1,8 @@
 import json
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import aiomqtt
@@ -50,13 +52,38 @@ class MQTTClient:
         logger.info("mqtt_published", topic=topic, qos=qos, retain=retain)
 
 
+@dataclass
+class BrokerState:
+    connected: bool = False
+    connected_at: datetime | None = None
+    disconnected_at: datetime | None = None
+    last_error: str | None = None
+
+    def mark_connected(self) -> None:
+        self.connected = True
+        self.connected_at = datetime.now(UTC)
+        self.last_error = None
+
+    def mark_disconnected(self, error: str | None = None) -> None:
+        self.connected = False
+        self.disconnected_at = datetime.now(UTC)
+        self.last_error = error
+
+
+broker_state = BrokerState()
+
+
 @asynccontextmanager
 async def connect() -> AsyncGenerator[MQTTClient]:
-    async with build_client() as client:
-        logger.info(
-            "mqtt_connected",
-            host=settings.mqtt_host,
-            port=settings.mqtt_port,
-            tls=bool(settings.mqtt_ca_file),
-        )
-        yield MQTTClient(client)
+    try:
+        async with build_client() as client:
+            broker_state.mark_connected()
+            logger.info(
+                "mqtt_connected",
+                host=settings.mqtt_host,
+                port=settings.mqtt_port,
+                tls=bool(settings.mqtt_ca_file),
+            )
+            yield MQTTClient(client)
+    finally:
+        broker_state.mark_disconnected()

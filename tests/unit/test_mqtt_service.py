@@ -7,8 +7,6 @@ from app.services.mqtt_service import MQTTService
 
 SECRET = "device-secret-123"
 
-# Vrednosti `acc` koje mosquitto salje pluginu (mosquitto.h):
-# MOSQ_ACL_READ = 1, MOSQ_ACL_WRITE = 2, MOSQ_ACL_SUBSCRIBE = 4.
 READ = 1
 WRITE = 2
 SUBSCRIBE = 4
@@ -53,9 +51,6 @@ def make_service(*devices: Device) -> MQTTService:
 
 def repo_of(service: MQTTService) -> FakeDeviceRepository:
     return service._device_repo  # type: ignore[return-value]
-
-
-# --- authenticate ---------------------------------------------------------
 
 
 async def test_backend_account_accepts_configured_password() -> None:
@@ -104,7 +99,6 @@ async def test_device_secret_is_stored_hashed_not_in_plaintext() -> None:
 
 
 async def test_plaintext_secret_in_database_is_refused() -> None:
-    """Zaostale nehesovane lozinke ne smeju da prolaze, ni da ruse endpoint."""
     device = make_device()
     device.hashed_password = SECRET
     service = make_service(device)
@@ -128,17 +122,11 @@ async def test_failed_authentication_does_not_refresh_last_seen() -> None:
     assert repo_of(service).seen == []
 
 
-# --- check_acl: backend nalog --------------------------------------------
-
-
 @pytest.mark.parametrize("access", [READ, WRITE, SUBSCRIBE])
 async def test_backend_account_may_touch_any_topic(access: int) -> None:
     service = make_service()
 
     assert await service.check_acl(settings.mqtt_username, "bilo/koja/tema", access)
-
-
-# --- check_acl: objavljivanje merenja ------------------------------------
 
 
 async def test_device_publishes_to_its_own_topic() -> None:
@@ -154,21 +142,18 @@ async def test_device_cannot_publish_to_another_classroom() -> None:
 
 
 async def test_device_cannot_publish_under_another_devices_name() -> None:
-    """Identitet je u temi, pa uredjaj ne moze da se predstavi kao tudji."""
     service = make_service(make_device(classroom_id=7, username="esp32-1"))
 
     assert not await service.check_acl("esp32-1", "classrooms/7/esp32-2", WRITE)
 
 
 async def test_classroom_prefix_of_another_id_is_not_accepted() -> None:
-    """`classrooms/70` ne sme da prodje na osnovu poklapanja prefiksa sa `classrooms/7`."""
     service = make_service(make_device(classroom_id=7))
 
     assert not await service.check_acl("esp32-1", "classrooms/70/esp32-1", WRITE)
 
 
 async def test_topic_without_device_segment_is_not_allowed() -> None:
-    """Stara sema `classrooms/{id}` vise ne prolazi."""
     service = make_service(make_device(classroom_id=7))
 
     assert not await service.check_acl("esp32-1", "classrooms/7", WRITE)
@@ -185,9 +170,6 @@ async def test_device_cannot_listen_to_its_own_measurement_topic(access: int) ->
     service = make_service(make_device(classroom_id=7))
 
     assert not await service.check_acl("esp32-1", "classrooms/7/esp32-1", access)
-
-
-# --- check_acl: preuzimanje konfiguracije --------------------------------
 
 
 @pytest.mark.parametrize("access", [READ, SUBSCRIBE])
@@ -207,9 +189,6 @@ async def test_device_cannot_read_config_of_another_device() -> None:
     service = make_service(make_device(username="esp32-1"))
 
     assert not await service.check_acl("esp32-1", "devices/config/esp32-2", SUBSCRIBE)
-
-
-# --- check_acl: neaktivni i nepoznati ------------------------------------
 
 
 @pytest.mark.parametrize(

@@ -32,7 +32,6 @@ def test_full_payload_is_accepted() -> None:
 
 
 def test_partial_payload_is_accepted() -> None:
-    """Senzor moze da otkaze ili da bude iskljucen -- polje tada izostaje."""
     parsed = MeasurementPayload.model_validate(payload())
 
     assert parsed.temperature == 22.5
@@ -45,7 +44,6 @@ def test_payload_without_any_metric_is_rejected() -> None:
 
 
 def test_unknown_field_is_rejected() -> None:
-    """Stroga sema hvata greske u firmware-u umesto da ih tiho proguta."""
     with pytest.raises(ValidationError):
         MeasurementPayload.model_validate(payload(temperatura=22.5))
 
@@ -53,9 +51,6 @@ def test_unknown_field_is_rejected() -> None:
 def test_missing_timestamp_is_rejected() -> None:
     with pytest.raises(ValidationError):
         MeasurementPayload.model_validate({"temperature": 22.5})
-
-
-# --- vreme ----------------------------------------------------------------
 
 
 def test_naive_timestamp_is_treated_as_utc() -> None:
@@ -76,7 +71,6 @@ def test_offset_timestamp_is_preserved() -> None:
 
 
 def test_old_timestamp_is_accepted() -> None:
-    """Uredjaj bez veze salje nagomilana merenja kad se vrati na mrezu."""
     old = NOW - timedelta(days=3)
 
     parsed = MeasurementPayload.model_validate(payload(timestamp=old.isoformat()))
@@ -97,9 +91,6 @@ def test_far_future_timestamp_is_rejected() -> None:
 
     with pytest.raises(ValidationError, match="buducnosti"):
         MeasurementPayload.model_validate(payload(timestamp=future.isoformat()))
-
-
-# --- opsezi vrednosti -----------------------------------------------------
 
 
 @pytest.mark.parametrize(

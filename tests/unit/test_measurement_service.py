@@ -87,7 +87,6 @@ async def test_all_metrics_are_copied_from_payload() -> None:
 
 
 async def test_device_timestamp_is_used_not_arrival_time() -> None:
-    """Merenja iz reda cekanja moraju da zadrze vreme kad su stvarno nastala."""
     measured_at = datetime(2026, 8, 1, 9, 30, tzinfo=UTC)
     service, _, measurements = make_service(make_device())
 
@@ -113,9 +112,6 @@ async def test_successful_ingest_refreshes_last_seen() -> None:
     assert devices.seen == ["esp32-1"]
 
 
-# --- odbijanja ------------------------------------------------------------
-
-
 async def test_unknown_device_is_rejected() -> None:
     service, _, measurements = make_service(make_device())
 
@@ -137,7 +133,6 @@ async def test_inactive_device_is_rejected() -> None:
 
 
 async def test_device_from_another_classroom_is_rejected() -> None:
-    """Backend ne veruje temi na rec -- ACL kes brokera moze da bude zastareo."""
     service, _, measurements = make_service(make_device(classroom_id=7))
 
     with pytest.raises(MeasurementRejectedError, match="ne pripada"):
