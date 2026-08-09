@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     database_url: str
     secret_key: SecretStr
     access_token_expire_minutes: int = 30
+    token_touch_interval_seconds: int = 60
+    default_device_name: str = "nepoznat uredjaj"
     cors_origins: list[str] = []
     log_level: str
     log_format: Literal["json", "console"] = "json"

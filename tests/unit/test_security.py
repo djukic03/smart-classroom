@@ -1,14 +1,7 @@
-from datetime import timedelta
-
-import jwt
-import pytest
-
-from app.core.config import settings
 from app.core.security import (
-    ALGORITHM,
-    create_access_token,
-    decode_access_token,
+    generate_token,
     hash_password,
+    hash_token,
     verify_password,
 )
 
@@ -34,60 +27,31 @@ def test_verify_rejects_wrong_password() -> None:
     assert not verify_password("pogresna", hash_password(PASSWORD))
 
 
-# --- tokeni ---------------------------------------------------------------
+def test_generated_tokens_are_unique() -> None:
+    tokens = {generate_token() for _ in range(100)}
+
+    assert len(tokens) == 100
 
 
-def test_token_round_trip_preserves_payload() -> None:
-    token = create_access_token({"sub": "42", "role": "ADMIN"})
-
-    payload = decode_access_token(token)
-
-    assert payload["sub"] == "42"
-    assert payload["role"] == "ADMIN"
+def test_generated_token_is_long_enough() -> None:
+    assert len(generate_token()) >= 40
 
 
-def test_token_carries_expiry() -> None:
-    payload = decode_access_token(create_access_token({"sub": "1"}))
+def test_token_hash_is_not_the_token() -> None:
+    token = generate_token()
 
-    assert "exp" in payload
-
-
-def test_expired_token_is_rejected() -> None:
-    token = create_access_token({"sub": "1"}, expires_delta=timedelta(seconds=-1))
-
-    with pytest.raises(jwt.ExpiredSignatureError):
-        decode_access_token(token)
+    assert hash_token(token) != token
 
 
-def test_token_signed_with_another_key_is_rejected() -> None:
-    forged = jwt.encode({"sub": "1"}, "tudji-kljuc-" + "x" * 32, algorithm=ALGORITHM)
+def test_token_hash_is_stable() -> None:
+    token = generate_token()
 
-    with pytest.raises(jwt.InvalidSignatureError):
-        decode_access_token(forged)
-
-
-def test_tampered_payload_is_rejected() -> None:
-    token = create_access_token({"sub": "1", "role": "USER"})
-    header, payload, signature = token.split(".")
-    forged_payload = jwt.utils.base64url_encode(b'{"sub":"1","role":"ADMIN"}').decode()
-
-    with pytest.raises(jwt.InvalidSignatureError):
-        decode_access_token(f"{header}.{forged_payload}.{signature}")
+    assert hash_token(token) == hash_token(token)
 
 
-def test_none_algorithm_token_is_rejected() -> None:
-    """Klasican napad: token bez potpisa sa `alg: none`."""
-    unsigned = jwt.encode({"sub": "1"}, key="", algorithm="none")
-
-    with pytest.raises(jwt.InvalidAlgorithmError):
-        decode_access_token(unsigned)
+def test_different_tokens_hash_differently() -> None:
+    assert hash_token(generate_token()) != hash_token(generate_token())
 
 
-def test_secret_key_is_actually_used_for_signing() -> None:
-    token = create_access_token({"sub": "1"})
-
-    payload = jwt.decode(
-        token, settings.secret_key.get_secret_value(), algorithms=[ALGORITHM]
-    )
-
-    assert payload["sub"] == "1"
+def test_token_hash_fits_the_column() -> None:
+    assert len(hash_token(generate_token())) == 64
