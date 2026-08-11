@@ -45,5 +45,21 @@ services:
     depends_on:
       - app
 
+  rpi-simulator:
+    build: "./RPi simulator"
+    container_name: rpi-simulator
+    restart: unless-stopped
+    env_file:
+      - ./RPi simulator/.env
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 8883
+      MQTT_CA_FILE: /certs/ca.crt
+    volumes:
+      - ./mosquitto/certs/ca.crt:/certs/ca.crt:ro
+    depends_on:
+      - app
+      - mosquitto
+
 volumes:
   pgdata:
