@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     token_touch_interval_seconds: int = 60
     default_device_name: str = "nepoznat uredjaj"
+    login_ip_attempt_limit: int = 20
+    login_ip_window_seconds: float = 300.0
+    login_account_attempt_limit: int = 5
+    login_account_window_seconds: float = 300.0
+    register_attempt_limit: int = 5
+    register_window_seconds: float = 3600.0
     cors_origins: list[str] = []
     log_level: str
     log_format: Literal["json", "console"] = "json"

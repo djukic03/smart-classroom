@@ -14,6 +14,7 @@ from app.core.exceptions import (
     AuthenticationError,
     NotFoundError,
     PermissionDeniedError,
+    RateLimitedError,
 )
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIdMiddleware
@@ -76,6 +77,15 @@ async def _permission_denied_handler(request: Request, exc: PermissionDeniedErro
     return JSONResponse(
         status_code=status.HTTP_403_FORBIDDEN,
         content={"detail": str(exc)}
+    )
+
+
+@app.exception_handler(RateLimitedError)
+async def _rate_limited_handler(request: Request, exc: RateLimitedError) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={"detail": str(exc)},
+        headers={"Retry-After": str(exc.retry_after)},
     )
 
 

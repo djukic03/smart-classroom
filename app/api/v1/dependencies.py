@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.exceptions import PermissionDeniedError
+from app.core.exceptions import PermissionDeniedError, RateLimitedError
 from app.models.user import Role, User
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.device_repo import DeviceRepository
@@ -15,8 +15,10 @@ from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.services.classroom_service import ClassroomService
 from app.services.mqtt_service import MQTTService
+from app.services.session_service import SessionService
 from app.services.user_service import UserService
 from app.utils.network import HostAllowlist
+from app.utils.rate_limit import SlidingWindowLimiter
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -25,6 +27,44 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 logger = structlog.get_logger("app.security")
 
 mqtt_hook_allowlist = HostAllowlist(settings.mqtt_hook_allowed_hosts)
+
+login_ip_limiter = SlidingWindowLimiter(
+    limit=settings.login_ip_attempt_limit,
+    window_seconds=settings.login_ip_window_seconds,
+)
+login_account_limiter = SlidingWindowLimiter(
+    limit=settings.login_account_attempt_limit,
+    window_seconds=settings.login_account_window_seconds,
+)
+register_limiter = SlidingWindowLimiter(
+    limit=settings.register_attempt_limit,
+    window_seconds=settings.register_window_seconds,
+)
+
+
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def enforce_login_limits(request: Request, email: str) -> str:
+    ip = client_ip(request)
+    if not login_ip_limiter.check(ip):
+        logger.warning("login_rate_limited", scope="ip", client=ip)
+        raise RateLimitedError(login_ip_limiter.retry_after(ip))
+
+    account_key = f"{ip}|{email.lower()}"
+    if not login_account_limiter.check(account_key):
+        logger.warning("login_rate_limited", scope="account", client=ip, email=email)
+        raise RateLimitedError(login_account_limiter.retry_after(account_key))
+
+    return account_key
+
+
+def enforce_register_limit(request: Request) -> None:
+    ip = client_ip(request)
+    if not register_limiter.check(ip):
+        logger.warning("register_rate_limited", client=ip)
+        raise RateLimitedError(register_limiter.retry_after(ip))
 
 
 def require_mqtt_hook_client(request: Request) -> None:
@@ -77,8 +117,17 @@ def get_user_service(
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
+def get_session_service(
+    user_service: UserServiceDep, token_repo: TokenRepositoryDep
+) -> SessionService:
+    return SessionService(user_service, token_repo)
+
+
+SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
+
+
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], service: UserServiceDep
+    token: Annotated[str, Depends(oauth2_scheme)], service: SessionServiceDep
 ) -> User:
     return await service.resolve_token(token)
 

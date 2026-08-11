@@ -5,6 +5,9 @@ os.environ["MQTT_USERNAME"] = "test-backend"
 os.environ["MQTT_PASSWORD"] = "test-backend-password"
 os.environ["MQTT_HOOK_ALLOWED_HOSTS"] = '["127.0.0.1"]'
 os.environ["MQTT_CONSUMER_ENABLED"] = "false"
+os.environ["LOGIN_IP_ATTEMPT_LIMIT"] = "8"
+os.environ["LOGIN_ACCOUNT_ATTEMPT_LIMIT"] = "3"
+os.environ["REGISTER_ATTEMPT_LIMIT"] = "3"
 
 import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -33,6 +36,11 @@ import app.models.schedule  # noqa: F401
 import app.models.sensor_config  # noqa: F401
 import app.models.user  # noqa: F401
 from alembic import command
+from app.api.v1.dependencies import (
+    login_account_limiter,
+    login_ip_limiter,
+    register_limiter,
+)
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.security import hash_password
@@ -42,6 +50,15 @@ from app.models.device import Device, DeviceStatus
 from app.models.user import Role, User
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiters() -> AsyncGenerator[None]:
+    for limiter in (login_ip_limiter, login_account_limiter, register_limiter):
+        limiter.clear()
+    yield
+    for limiter in (login_ip_limiter, login_account_limiter, register_limiter):
+        limiter.clear()
 
 
 def _test_database_url() -> str:

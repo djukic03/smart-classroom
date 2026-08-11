@@ -3,7 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.api.v1.dependencies import BearerToken, CurrentUser, UserServiceDep
+from app.api.v1.dependencies import (
+    BearerToken,
+    CurrentUser,
+    SessionServiceDep,
+    UserServiceDep,
+    enforce_login_limits,
+    enforce_register_limit,
+    login_account_limiter,
+)
 from app.core.config import settings
 from app.schemas.user import SessionRead, Token, UserCreate, UserRead
 
@@ -20,25 +28,30 @@ def resolve_device_name(sent: str | None, request: Request) -> str:
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(data: UserCreate, service: UserServiceDep) -> object:
+async def register(
+    data: UserCreate, service: UserServiceDep, request: Request
+) -> object:
+    enforce_register_limit(request)
     return await service.register(data)
 
 
 @router.post("/login", response_model=Token)
 async def login(
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
-    service: UserServiceDep,
+    service: SessionServiceDep,
     request: Request,
     device_name: Annotated[str | None, Form()] = None,
 ) -> Token:
+    account_key = enforce_login_limits(request, form.username)
     token = await service.login(
         form.username, form.password, resolve_device_name(device_name, request)
     )
+    login_account_limiter.reset(account_key)
     return Token(access_token=token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(token: BearerToken, service: UserServiceDep) -> None:
+async def logout(token: BearerToken, service: SessionServiceDep) -> None:
     await service.logout(token)
 
 
@@ -48,5 +61,5 @@ async def me(user: CurrentUser) -> object:
 
 
 @router.get("/sessions", response_model=list[SessionRead])
-async def sessions(user: CurrentUser, service: UserServiceDep) -> object:
+async def sessions(user: CurrentUser, service: SessionServiceDep) -> object:
     return await service.list_sessions(user.id)
