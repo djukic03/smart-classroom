@@ -14,6 +14,7 @@ from app.repositories.device_repo import DeviceRepository
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.services.classroom_service import ClassroomService
+from app.services.device_service import DeviceService
 from app.services.mqtt_service import MQTTService
 from app.services.session_service import SessionService
 from app.services.user_service import UserService
@@ -152,6 +153,15 @@ def get_device_repository(db: DbSession) -> DeviceRepository:
 
 
 DeviceRepositoryDep = Annotated[DeviceRepository, Depends(get_device_repository)]
+
+
+def get_device_service(
+    repo: DeviceRepositoryDep, classroom_repo: ClassroomRepositoryDep
+) -> DeviceService:
+    return DeviceService(repo, classroom_repo)
+
+
+DeviceServiceDep = Annotated[DeviceService, Depends(get_device_service)]
 
 
 def get_mqtt_service(repo: DeviceRepositoryDep) -> MQTTService:

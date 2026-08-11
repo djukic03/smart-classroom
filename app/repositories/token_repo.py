@@ -44,6 +44,12 @@ class TokenRepository:
         await self._db.delete(token)
         await self._db.flush()
 
+    async def delete_all_for_user(self, user_id: int) -> int:
+        stmt = delete(AccessToken).where(AccessToken.user_id == user_id)
+        result = cast("CursorResult[Any]", await self._db.execute(stmt))
+        await self._db.flush()
+        return int(result.rowcount or 0)
+
     async def delete_expired_for_user(self, user_id: int) -> int:
         stmt = delete(AccessToken).where(
             AccessToken.user_id == user_id,

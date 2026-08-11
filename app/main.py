@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.endpoints import auth, classroom, health, mqtt
+from app.api.v1.endpoints import auth, classroom, device, health, mqtt, user
 from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.exceptions import (
@@ -92,4 +92,6 @@ async def _rate_limited_handler(request: Request, exc: RateLimitedError) -> JSON
 app.include_router(health.router, prefix="/health")
 app.include_router(auth.router, prefix="/api/v1/auth")
 app.include_router(classroom.router, prefix="/api/v1/classrooms")
+app.include_router(device.router, prefix="/api/v1/devices")
+app.include_router(user.router, prefix="/api/v1/users")
 app.include_router(mqtt.router, prefix="/api/v1/mqtt")

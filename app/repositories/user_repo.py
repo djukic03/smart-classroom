@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,9 +22,17 @@ class UserRepository:
         stmt = select(User).where(User.email == email)
         return (await self._db.scalars(stmt)).first()
 
+    async def list(self) -> Sequence[User]:
+        stmt = select(User).order_by(User.id)
+        return (await self._db.scalars(stmt)).all()
+
     async def add(self, user: User) -> User:
         self._db.add(user)
         return await self.save(user)
+
+    async def delete(self, user: User) -> None:
+        await self._db.delete(user)
+        await self._db.flush()
 
     async def save(self, user: User) -> User:
         try:
