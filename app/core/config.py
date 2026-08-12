@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     token_touch_interval_seconds: int = 60
     default_device_name: str = "nepoznat uredjaj"
+    measurement_aggregate_min_range_hours: int = 24
     login_ip_attempt_limit: int = 20
     login_ip_window_seconds: float = 300.0
     login_account_attempt_limit: int = 5

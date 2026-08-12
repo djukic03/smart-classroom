@@ -27,6 +27,11 @@ class PermissionDeniedError(AppError):
         super().__init__(detail)
 
 
+class InvalidParameterError(AppError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
 class RateLimitedError(AppError):
     def __init__(self, retry_after: int, detail: str = "Previse pokusaja") -> None:
         self.retry_after = retry_after

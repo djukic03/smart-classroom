@@ -41,3 +41,57 @@ class MeasurementPayload(BaseModel):
         if all(getattr(self, field) is None for field in METRIC_FIELDS):
             raise ValueError("poruka ne sadrzi nijednu metriku")
         return self
+
+
+class MeasurementRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    device_id: int
+    device_username: str
+    timestamp: datetime
+    co2: float | None
+    temperature: float | None
+    humidity: float | None
+    illuminance: float | None
+    sound: float | None
+    occupancy: int | None
+
+
+class MetricStats(BaseModel):
+    avg: float | None
+    min: float | None
+    max: float | None
+
+
+class MeasurementBucket(BaseModel):
+    timestamp: datetime
+    samples: int
+    co2: MetricStats
+    temperature: MetricStats
+    humidity: MetricStats
+    illuminance: MetricStats
+    sound: MetricStats
+    occupancy: MetricStats
+
+
+class MeasurementHistory(BaseModel):
+    classroom_id: int
+    start: datetime
+    end: datetime
+    interval: str
+    source: str
+    buckets: list[MeasurementBucket]
+
+
+class MeasurementSummary(BaseModel):
+    classroom_id: int
+    start: datetime
+    end: datetime
+    source: str
+    samples: int
+    co2: MetricStats
+    temperature: MetricStats
+    humidity: MetricStats
+    illuminance: MetricStats
+    sound: MetricStats
+    occupancy: MetricStats

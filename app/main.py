@@ -6,12 +6,21 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.endpoints import auth, classroom, device, health, mqtt, user
+from app.api.v1.endpoints import (
+    auth,
+    classroom,
+    device,
+    health,
+    measurement,
+    mqtt,
+    user,
+)
 from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.exceptions import (
     AlreadyExistsError,
     AuthenticationError,
+    InvalidParameterError,
     NotFoundError,
     PermissionDeniedError,
     RateLimitedError,
@@ -80,6 +89,16 @@ async def _permission_denied_handler(request: Request, exc: PermissionDeniedErro
     )
 
 
+@app.exception_handler(InvalidParameterError)
+async def _invalid_parameter_handler(
+    request: Request, exc: InvalidParameterError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)},
+    )
+
+
 @app.exception_handler(RateLimitedError)
 async def _rate_limited_handler(request: Request, exc: RateLimitedError) -> JSONResponse:
     return JSONResponse(
@@ -93,5 +112,8 @@ app.include_router(health.router, prefix="/health")
 app.include_router(auth.router, prefix="/api/v1/auth")
 app.include_router(classroom.router, prefix="/api/v1/classrooms")
 app.include_router(device.router, prefix="/api/v1/devices")
+app.include_router(
+    measurement.router, prefix="/api/v1/classrooms/{classroom_id}/measurements"
+)
 app.include_router(user.router, prefix="/api/v1/users")
 app.include_router(mqtt.router, prefix="/api/v1/mqtt")

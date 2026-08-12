@@ -11,10 +11,12 @@ from app.core.exceptions import PermissionDeniedError, RateLimitedError
 from app.models.user import Role, User
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.device_repo import DeviceRepository
+from app.repositories.measurement_repo import MeasurementRepository
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.services.classroom_service import ClassroomService
 from app.services.device_service import DeviceService
+from app.services.measurement_service import MeasurementService
 from app.services.mqtt_service import MQTTService
 from app.services.session_service import SessionService
 from app.services.user_service import UserService
@@ -162,6 +164,26 @@ def get_device_service(
 
 
 DeviceServiceDep = Annotated[DeviceService, Depends(get_device_service)]
+
+
+def get_measurement_repository(db: DbSession) -> MeasurementRepository:
+    return MeasurementRepository(db)
+
+
+MeasurementRepositoryDep = Annotated[
+    MeasurementRepository, Depends(get_measurement_repository)
+]
+
+
+def get_measurement_service(
+    device_repo: DeviceRepositoryDep,
+    measurement_repo: MeasurementRepositoryDep,
+    classroom_repo: ClassroomRepositoryDep,
+) -> MeasurementService:
+    return MeasurementService(device_repo, measurement_repo, classroom_repo)
+
+
+MeasurementServiceDep = Annotated[MeasurementService, Depends(get_measurement_service)]
 
 
 def get_mqtt_service(repo: DeviceRepositoryDep) -> MQTTService:
