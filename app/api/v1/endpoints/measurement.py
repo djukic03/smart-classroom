@@ -36,7 +36,7 @@ async def raw_measurements(
     return await service.raw(classroom_id, start, end, limit)
 
 
-@router.get("/", response_model=MeasurementHistory)
+@router.get("", response_model=MeasurementHistory)
 async def measurement_history(
     classroom_id: int,
     service: MeasurementServiceDep,

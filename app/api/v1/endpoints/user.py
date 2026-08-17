@@ -11,12 +11,12 @@ from app.schemas.user import (
 router = APIRouter(tags=["users"], dependencies=[Depends(require_admin)])
 
 
-@router.get("/", response_model=list[UserRead])
+@router.get("", response_model=list[UserRead])
 async def list_users(service: UserServiceDep) -> object:
     return await service.list_users()
 
 
-@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def create_user(data: UserAdminCreate, service: UserServiceDep) -> object:
     return await service.create_user(data)
 

@@ -128,12 +128,23 @@ async def test_history_reports_min_and_max(
 ) -> None:
     classroom = await make_classroom()
     device = await make_device(classroom.id)
-    for minutes, co2 in ((20, 400.0), (15, 800.0), (10, 600.0)):
-        await add_measurement(db_session, device.id, minutes_ago=minutes, co2=co2)
+    end = NOW.replace(minute=0, second=0, microsecond=0)
+    start = end - timedelta(hours=1)
+    for offset, co2 in ((10, 400.0), (20, 800.0), (30, 600.0)):
+        measurement = Measurement(
+            device_id=device.id, timestamp=start + timedelta(minutes=offset), co2=co2
+        )
+        db_session.add(measurement)
+    await db_session.flush()
 
     body = (
         await user_client.get(
-            url(classroom.id), params={"interval": "1h"}
+            url(classroom.id),
+            params={
+                "from": start.isoformat(),
+                "to": end.isoformat(),
+                "interval": "1h",
+            },
         )
     ).json()
 

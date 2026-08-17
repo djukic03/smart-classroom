@@ -14,7 +14,7 @@ from app.schemas.device import (
 router = APIRouter(tags=["devices"], dependencies=[Depends(require_admin)])
 
 
-@router.get("/", response_model=list[DeviceRead])
+@router.get("", response_model=list[DeviceRead])
 async def list_devices(
     service: DeviceServiceDep,
     classroom_id: Annotated[int | None, Query(gt=0)] = None,
@@ -22,7 +22,7 @@ async def list_devices(
     return await service.list(classroom_id)
 
 
-@router.post("/", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=DeviceCreated, status_code=status.HTTP_201_CREATED)
 async def create_device(data: DeviceCreate, service: DeviceServiceDep) -> DeviceCreated:
     device, secret = await service.create(data)
     return DeviceCreated(**DeviceRead.model_validate(device).model_dump(), secret=secret)

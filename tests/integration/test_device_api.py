@@ -10,7 +10,7 @@ from app.models.device import Device
 
 ClassroomFactory = Callable[..., Awaitable[Any]]
 
-URL = "/api/v1/devices/"
+URL = "/api/v1/devices"
 
 
 async def create_device(
@@ -61,7 +61,7 @@ async def test_secret_is_not_returned_again(
     classroom = await make_classroom()
     created = await create_device(admin_client, classroom.id)
 
-    r = await admin_client.get(f"{URL}{created['id']}")
+    r = await admin_client.get(f"{URL}/{created['id']}")
 
     assert r.status_code == 200
     assert "secret" not in r.json()
@@ -154,7 +154,7 @@ async def test_activation_changes_status(
     classroom = await make_classroom()
     created = await create_device(admin_client, classroom.id)
 
-    r = await admin_client.patch(f"{URL}{created['id']}", json={"status": "ACTIVE"})
+    r = await admin_client.patch(f"{URL}/{created['id']}", json={"status": "ACTIVE"})
 
     assert r.status_code == 200
     assert r.json()["status"] == "ACTIVE"
@@ -168,7 +168,7 @@ async def test_device_can_be_moved_to_another_classroom(
     created = await create_device(admin_client, first.id)
 
     r = await admin_client.patch(
-        f"{URL}{created['id']}", json={"classroom_id": second.id}
+        f"{URL}/{created['id']}", json={"classroom_id": second.id}
     )
 
     assert r.json()["classroom_id"] == second.id
@@ -182,7 +182,7 @@ async def test_regenerating_secret_returns_a_new_one(
     classroom = await make_classroom()
     created = await create_device(admin_client, classroom.id)
 
-    r = await admin_client.post(f"{URL}{created['id']}/secret")
+    r = await admin_client.post(f"{URL}/{created['id']}/secret")
 
     assert r.status_code == 200
     new_secret = r.json()["secret"]
@@ -202,16 +202,16 @@ async def test_delete_removes_the_device(
     classroom = await make_classroom()
     created = await create_device(admin_client, classroom.id)
 
-    r = await admin_client.delete(f"{URL}{created['id']}")
+    r = await admin_client.delete(f"{URL}/{created['id']}")
 
     assert r.status_code == 204
     assert await stored(db_session, "esp32-1") is None
 
 
 async def test_unknown_device_returns_404(admin_client: AsyncClient) -> None:
-    assert (await admin_client.get(f"{URL}999")).status_code == 404
-    assert (await admin_client.delete(f"{URL}999")).status_code == 404
-    assert (await admin_client.post(f"{URL}999/secret")).status_code == 404
+    assert (await admin_client.get(f"{URL}/999")).status_code == 404
+    assert (await admin_client.delete(f"{URL}/999")).status_code == 404
+    assert (await admin_client.post(f"{URL}/999/secret")).status_code == 404
 
 
 async def test_plain_user_cannot_read_devices(user_client: AsyncClient) -> None:

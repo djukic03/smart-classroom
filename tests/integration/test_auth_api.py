@@ -121,19 +121,19 @@ async def test_me_with_malformed_token_returns_401(client: AsyncClient) -> None:
 
 
 async def test_classrooms_without_token_return_401(client: AsyncClient) -> None:
-    r = await client.get("/api/v1/classrooms/")
+    r = await client.get("/api/v1/classrooms")
 
     assert r.status_code == 401
 
 
 async def test_plain_user_can_read_classrooms(user_client: AsyncClient) -> None:
-    r = await user_client.get("/api/v1/classrooms/")
+    r = await user_client.get("/api/v1/classrooms")
 
     assert r.status_code == 200
 
 
 async def test_plain_user_cannot_create_classroom(user_client: AsyncClient) -> None:
-    r = await user_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+    r = await user_client.post("/api/v1/classrooms", json={"name": "A-101"})
 
     assert r.status_code == 403
 
@@ -145,7 +145,7 @@ async def test_plain_user_cannot_delete_classroom(user_client: AsyncClient) -> N
 
 
 async def test_admin_can_create_classroom(admin_client: AsyncClient) -> None:
-    r = await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+    r = await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
 
     assert r.status_code == 201
 

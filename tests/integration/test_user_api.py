@@ -8,7 +8,7 @@ from app.core.security import verify_password
 from app.models.access_token import AccessToken
 from app.models.user import User
 
-URL = "/api/v1/users/"
+URL = "/api/v1/users"
 PASSWORD = "secret-password-123"
 NEW_PASSWORD = "nova-lozinka-456"
 
@@ -97,14 +97,14 @@ async def test_list_contains_created_users(admin_client: AsyncClient) -> None:
 
 
 async def test_unknown_user_returns_404(admin_client: AsyncClient) -> None:
-    assert (await admin_client.get(f"{URL}999")).status_code == 404
-    assert (await admin_client.delete(f"{URL}999")).status_code == 404
+    assert (await admin_client.get(f"{URL}/999")).status_code == 404
+    assert (await admin_client.delete(f"{URL}/999")).status_code == 404
 
 
 async def test_admin_grants_admin_role(admin_client: AsyncClient) -> None:
     created = await create_user(admin_client)
 
-    r = await admin_client.patch(f"{URL}{created['id']}", json={"role": "ADMIN"})
+    r = await admin_client.patch(f"{URL}/{created['id']}", json={"role": "ADMIN"})
 
     assert r.status_code == 200
     assert r.json()["role"] == "ADMIN"
@@ -113,7 +113,7 @@ async def test_admin_grants_admin_role(admin_client: AsyncClient) -> None:
 async def test_admin_revokes_admin_role(admin_client: AsyncClient) -> None:
     created = await create_user(admin_client, email="drugi-admin@test.rs", role="ADMIN")
 
-    r = await admin_client.patch(f"{URL}{created['id']}", json={"role": "USER"})
+    r = await admin_client.patch(f"{URL}/{created['id']}", json={"role": "USER"})
 
     assert r.json()["role"] == "USER"
 
@@ -123,7 +123,7 @@ async def test_admin_cannot_demote_himself(
 ) -> None:
     me = (await admin_client.get("/api/v1/auth/me")).json()
 
-    r = await admin_client.patch(f"{URL}{me['id']}", json={"role": "USER"})
+    r = await admin_client.patch(f"{URL}/{me['id']}", json={"role": "USER"})
 
     assert r.status_code == 403
 
@@ -131,7 +131,7 @@ async def test_admin_cannot_demote_himself(
 async def test_admin_cannot_deactivate_himself(admin_client: AsyncClient) -> None:
     me = (await admin_client.get("/api/v1/auth/me")).json()
 
-    r = await admin_client.patch(f"{URL}{me['id']}", json={"is_active": False})
+    r = await admin_client.patch(f"{URL}/{me['id']}", json={"is_active": False})
 
     assert r.status_code == 403
 
@@ -139,7 +139,7 @@ async def test_admin_cannot_deactivate_himself(admin_client: AsyncClient) -> Non
 async def test_admin_cannot_delete_himself(admin_client: AsyncClient) -> None:
     me = (await admin_client.get("/api/v1/auth/me")).json()
 
-    r = await admin_client.delete(f"{URL}{me['id']}")
+    r = await admin_client.delete(f"{URL}/{me['id']}")
 
     assert r.status_code == 403
 
@@ -147,7 +147,7 @@ async def test_admin_cannot_delete_himself(admin_client: AsyncClient) -> None:
 async def test_deactivated_user_cannot_log_in(admin_client: AsyncClient) -> None:
     created = await create_user(admin_client)
 
-    await admin_client.patch(f"{URL}{created['id']}", json={"is_active": False})
+    await admin_client.patch(f"{URL}/{created['id']}", json={"is_active": False})
 
     assert await login(admin_client, "novi@test.rs", PASSWORD) == 401
 
@@ -158,7 +158,7 @@ async def test_deactivation_removes_active_sessions(
     created = await create_user(admin_client)
     await login(admin_client, "novi@test.rs", PASSWORD)
 
-    await admin_client.patch(f"{URL}{created['id']}", json={"is_active": False})
+    await admin_client.patch(f"{URL}/{created['id']}", json={"is_active": False})
 
     left = (
         await db_session.scalars(
@@ -174,7 +174,7 @@ async def test_password_change_lets_the_user_in_with_the_new_one(
     created = await create_user(admin_client)
 
     r = await admin_client.put(
-        f"{URL}{created['id']}/password", json={"new_password": NEW_PASSWORD}
+        f"{URL}/{created['id']}/password", json={"new_password": NEW_PASSWORD}
     )
 
     assert r.status_code == 204
@@ -185,7 +185,7 @@ async def test_old_password_stops_working(admin_client: AsyncClient) -> None:
     created = await create_user(admin_client)
 
     await admin_client.put(
-        f"{URL}{created['id']}/password", json={"new_password": NEW_PASSWORD}
+        f"{URL}/{created['id']}/password", json={"new_password": NEW_PASSWORD}
     )
 
     assert await login(admin_client, "novi@test.rs", PASSWORD) == 401
@@ -198,7 +198,7 @@ async def test_password_change_ends_existing_sessions(
     await login(admin_client, "novi@test.rs", PASSWORD)
 
     await admin_client.put(
-        f"{URL}{created['id']}/password", json={"new_password": NEW_PASSWORD}
+        f"{URL}/{created['id']}/password", json={"new_password": NEW_PASSWORD}
     )
 
     left = (
@@ -214,7 +214,7 @@ async def test_delete_removes_the_user(
 ) -> None:
     created = await create_user(admin_client)
 
-    r = await admin_client.delete(f"{URL}{created['id']}")
+    r = await admin_client.delete(f"{URL}/{created['id']}")
 
     assert r.status_code == 204
     assert await stored(db_session, "novi@test.rs") is None
@@ -226,7 +226,7 @@ async def test_user_with_sessions_can_be_deleted(
     created = await create_user(admin_client)
     await login(admin_client, "novi@test.rs", PASSWORD)
 
-    r = await admin_client.delete(f"{URL}{created['id']}")
+    r = await admin_client.delete(f"{URL}/{created['id']}")
 
     assert r.status_code == 204
     assert await stored(db_session, "novi@test.rs") is None
@@ -247,7 +247,7 @@ async def test_plain_user_cannot_grant_himself_admin(
 ) -> None:
     me = (await user_client.get("/api/v1/auth/me")).json()
 
-    r = await user_client.patch(f"{URL}{me['id']}", json={"role": "ADMIN"})
+    r = await user_client.patch(f"{URL}/{me['id']}", json={"role": "ADMIN"})
 
     assert r.status_code == 403
 

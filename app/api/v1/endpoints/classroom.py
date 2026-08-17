@@ -8,13 +8,13 @@ router = APIRouter(tags=["classrooms"], dependencies=[Depends(get_current_user)]
 admin_only = [Depends(require_admin)]
 
 
-@router.get("/", response_model=list[ClassroomRead])
+@router.get("", response_model=list[ClassroomRead])
 async def list_classrooms(service: ClassroomServiceDep) -> object:
     return await service.list()
 
 
 @router.post(
-    "/",
+    "",
     response_model=ClassroomRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=admin_only,

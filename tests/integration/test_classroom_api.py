@@ -16,7 +16,7 @@ async def _device_usernames(session: AsyncSession) -> set[str]:
 
 async def test_create_returns_201_and_body(admin_client: AsyncClient) -> None:
     r = await admin_client.post(
-        "/api/v1/classrooms/", json={"name": "A-101", "description": "Amfiteatar"}
+        "/api/v1/classrooms", json={"name": "A-101", "description": "Amfiteatar"}
     )
 
     assert r.status_code == 201
@@ -28,7 +28,7 @@ async def test_create_returns_201_and_body(admin_client: AsyncClient) -> None:
 
 async def test_create_then_get_returns_same_record(admin_client: AsyncClient) -> None:
     created = (
-        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+        await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
     ).json()
 
     r = await admin_client.get(f"/api/v1/classrooms/{created['id']}")
@@ -45,37 +45,37 @@ async def test_get_unknown_returns_404(admin_client: AsyncClient) -> None:
 
 
 async def test_duplicate_name_returns_409(admin_client: AsyncClient) -> None:
-    await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+    await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
 
-    r = await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+    r = await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
 
     assert r.status_code == 409
 
 
 async def test_empty_name_returns_422(admin_client: AsyncClient) -> None:
-    r = await admin_client.post("/api/v1/classrooms/", json={"name": ""})
+    r = await admin_client.post("/api/v1/classrooms", json={"name": ""})
 
     assert r.status_code == 422
 
 
 async def test_too_long_name_returns_422(admin_client: AsyncClient) -> None:
-    r = await admin_client.post("/api/v1/classrooms/", json={"name": "x" * 51})
+    r = await admin_client.post("/api/v1/classrooms", json={"name": "x" * 51})
 
     assert r.status_code == 422
 
 
 async def test_list_returns_created_classrooms(admin_client: AsyncClient) -> None:
-    await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
-    await admin_client.post("/api/v1/classrooms/", json={"name": "A-102"})
+    await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
+    await admin_client.post("/api/v1/classrooms", json={"name": "A-102"})
 
-    r = await admin_client.get("/api/v1/classrooms/")
+    r = await admin_client.get("/api/v1/classrooms")
 
     assert r.status_code == 200
     assert [c["name"] for c in r.json()] == ["A-101", "A-102"]
 
 
 async def test_list_is_empty_at_start(admin_client: AsyncClient) -> None:
-    r = await admin_client.get("/api/v1/classrooms/")
+    r = await admin_client.get("/api/v1/classrooms")
 
     assert r.json() == []
 
@@ -83,7 +83,7 @@ async def test_list_is_empty_at_start(admin_client: AsyncClient) -> None:
 async def test_patch_changes_only_submitted_field(admin_client: AsyncClient) -> None:
     created = (
         await admin_client.post(
-            "/api/v1/classrooms/", json={"name": "A-101", "description": "Amfiteatar"}
+            "/api/v1/classrooms", json={"name": "A-101", "description": "Amfiteatar"}
         )
     ).json()
 
@@ -98,7 +98,7 @@ async def test_patch_changes_only_submitted_field(admin_client: AsyncClient) -> 
 
 async def test_patch_is_persisted(admin_client: AsyncClient) -> None:
     created = (
-        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+        await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
     ).json()
     await admin_client.patch(
         f"/api/v1/classrooms/{created['id']}", json={"name": "A-102"}
@@ -111,7 +111,7 @@ async def test_patch_is_persisted(admin_client: AsyncClient) -> None:
 
 async def test_delete_returns_204_then_get_404(admin_client: AsyncClient) -> None:
     created = (
-        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+        await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
     ).json()
 
     deleted = await admin_client.delete(f"/api/v1/classrooms/{created['id']}")
@@ -134,7 +134,7 @@ async def test_delete_classroom_also_deletes_its_devices(
     make_device: DeviceFactory,
 ) -> None:
     room = (
-        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+        await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
     ).json()
     await make_device(room["id"], username="esp32-1")
     await make_device(room["id"], username="esp32-2")
@@ -151,10 +151,10 @@ async def test_devices_of_other_classrooms_survive_delete(
     make_device: DeviceFactory,
 ) -> None:
     doomed = (
-        await admin_client.post("/api/v1/classrooms/", json={"name": "A-101"})
+        await admin_client.post("/api/v1/classrooms", json={"name": "A-101"})
     ).json()
     kept = (
-        await admin_client.post("/api/v1/classrooms/", json={"name": "A-102"})
+        await admin_client.post("/api/v1/classrooms", json={"name": "A-102"})
     ).json()
     await make_device(doomed["id"], username="esp32-1")
     await make_device(kept["id"], username="esp32-2")
