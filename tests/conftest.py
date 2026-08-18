@@ -32,6 +32,7 @@ import app.models.classroom  # noqa: F401
 import app.models.device  # noqa: F401
 import app.models.device_config  # noqa: F401
 import app.models.measurement  # noqa: F401
+import app.models.password_reset_token  # noqa: F401
 import app.models.schedule  # noqa: F401
 import app.models.sensor_config  # noqa: F401
 import app.models.user  # noqa: F401
@@ -39,6 +40,8 @@ from alembic import command
 from app.api.v1.dependencies import (
     login_account_limiter,
     login_ip_limiter,
+    password_reset_account_limiter,
+    password_reset_ip_limiter,
     register_limiter,
 )
 from app.core.config import settings
@@ -54,10 +57,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture(autouse=True)
 def reset_rate_limiters() -> AsyncGenerator[None]:
-    for limiter in (login_ip_limiter, login_account_limiter, register_limiter):
+    limiters = (
+        login_ip_limiter,
+        login_account_limiter,
+        register_limiter,
+        password_reset_ip_limiter,
+        password_reset_account_limiter,
+    )
+    for limiter in limiters:
         limiter.clear()
     yield
-    for limiter in (login_ip_limiter, login_account_limiter, register_limiter):
+    for limiter in limiters:
         limiter.clear()
 
 

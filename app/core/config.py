@@ -33,6 +33,19 @@ class Settings(BaseSettings):
     mqtt_consumer_enabled: bool = True
     mqtt_hook_allowed_hosts: list[str] = ["mosquitto"]
     mqtt_config_queue_size: int = 1000
+    password_reset_token_expire_minutes: int = 30
+    password_reset_ip_attempt_limit: int = 5
+    password_reset_ip_window_seconds: float = 3600.0
+    password_reset_account_attempt_limit: int = 3
+    password_reset_account_window_seconds: float = 3600.0
+    frontend_reset_url: str = "http://localhost:3000/reset-password"
+    mail_backend: Literal["console", "smtp"] = "console"
+    mail_from: str = "no-reply@smart-classroom.local"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    smtp_starttls: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -45,6 +58,5 @@ class Settings(BaseSettings):
                 "SECRET_KEY contains a placeholder value; generate one with `openssl rand -hex 32`"
             )
         return v
-
 
 settings = Settings()

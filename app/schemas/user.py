@@ -49,3 +49,12 @@ class SessionRead(BaseModel):
     created_at: datetime
     last_used_at: datetime | None
     expires_at: datetime
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=16, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)

@@ -8,12 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import PermissionDeniedError, RateLimitedError
+from app.core.notifier import notifier
 from app.core.publisher import config_publisher
 from app.models.user import Role, User
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.device_config_repo import DeviceConfigRepository
 from app.repositories.device_repo import DeviceRepository
 from app.repositories.measurement_repo import MeasurementRepository
+from app.repositories.password_reset_repo import PasswordResetRepository
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.services.classroom_service import ClassroomService
@@ -21,6 +23,7 @@ from app.services.device_config_service import DeviceConfigService
 from app.services.device_service import DeviceService
 from app.services.measurement_service import MeasurementService
 from app.services.mqtt_service import MQTTService
+from app.services.password_reset_service import PasswordResetService
 from app.services.session_service import SessionService
 from app.services.user_service import UserService
 from app.utils.network import HostAllowlist
@@ -45,6 +48,14 @@ login_account_limiter = SlidingWindowLimiter(
 register_limiter = SlidingWindowLimiter(
     limit=settings.register_attempt_limit,
     window_seconds=settings.register_window_seconds,
+)
+password_reset_ip_limiter = SlidingWindowLimiter(
+    limit=settings.password_reset_ip_attempt_limit,
+    window_seconds=settings.password_reset_ip_window_seconds,
+)
+password_reset_account_limiter = SlidingWindowLimiter(
+    limit=settings.password_reset_account_attempt_limit,
+    window_seconds=settings.password_reset_account_window_seconds,
 )
 
 
@@ -71,6 +82,18 @@ def enforce_register_limit(request: Request) -> None:
     if not register_limiter.check(ip):
         logger.warning("register_rate_limited", client=ip)
         raise RateLimitedError(register_limiter.retry_after(ip))
+
+
+def enforce_password_reset_limits(request: Request, email: str) -> None:
+    ip = client_ip(request)
+    if not password_reset_ip_limiter.check(ip):
+        logger.warning("password_reset_rate_limited", scope="ip", client=ip)
+        raise RateLimitedError(password_reset_ip_limiter.retry_after(ip))
+
+    account_key = f"{ip}|{email.lower()}"
+    if not password_reset_account_limiter.check(account_key):
+        logger.warning("password_reset_rate_limited", scope="account", client=ip)
+        raise RateLimitedError(password_reset_account_limiter.retry_after(account_key))
 
 
 def require_mqtt_hook_client(request: Request) -> None:
@@ -130,6 +153,28 @@ def get_session_service(
 
 
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
+
+
+def get_password_reset_repository(db: DbSession) -> PasswordResetRepository:
+    return PasswordResetRepository(db)
+
+
+PasswordResetRepositoryDep = Annotated[
+    PasswordResetRepository, Depends(get_password_reset_repository)
+]
+
+
+def get_password_reset_service(
+    repo: PasswordResetRepositoryDep,
+    user_repo: UserRepositoryDep,
+    user_service: UserServiceDep,
+) -> PasswordResetService:
+    return PasswordResetService(repo, user_repo, user_service, notifier)
+
+
+PasswordResetServiceDep = Annotated[
+    PasswordResetService, Depends(get_password_reset_service)
+]
 
 
 async def get_current_user(
