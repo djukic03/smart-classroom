@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     mqtt_reconnect_seconds: float = 5.0
     mqtt_consumer_enabled: bool = True
     mqtt_hook_allowed_hosts: list[str] = ["mosquitto"]
+    mqtt_config_queue_size: int = 1000
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

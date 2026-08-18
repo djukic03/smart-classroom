@@ -44,12 +44,17 @@ class MQTTClient:
         logger.info("mqtt_subscribed", topic=topic_filter, qos=qos)
 
     async def publish(
-        self, topic: str, payload: dict[str, Any], qos: int = 1, retain: bool = False
+        self,
+        topic: str,
+        payload: dict[str, Any] | None,
+        qos: int = 1,
+        retain: bool = False,
     ) -> None:
-        await self._client.publish(
-            topic, payload=json.dumps(payload).encode(), qos=qos, retain=retain
+        body = b"" if payload is None else json.dumps(payload).encode()
+        await self._client.publish(topic, payload=body, qos=qos, retain=retain)
+        logger.info(
+            "mqtt_published", topic=topic, qos=qos, retain=retain, cleared=payload is None
         )
-        logger.info("mqtt_published", topic=topic, qos=qos, retain=retain)
 
 
 @dataclass

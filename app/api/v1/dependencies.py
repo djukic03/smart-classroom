@@ -8,13 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import PermissionDeniedError, RateLimitedError
+from app.core.publisher import config_publisher
 from app.models.user import Role, User
 from app.repositories.classroom_repo import ClassroomRepository
+from app.repositories.device_config_repo import DeviceConfigRepository
 from app.repositories.device_repo import DeviceRepository
 from app.repositories.measurement_repo import MeasurementRepository
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.services.classroom_service import ClassroomService
+from app.services.device_config_service import DeviceConfigService
 from app.services.device_service import DeviceService
 from app.services.measurement_service import MeasurementService
 from app.services.mqtt_service import MQTTService
@@ -157,10 +160,32 @@ def get_device_repository(db: DbSession) -> DeviceRepository:
 DeviceRepositoryDep = Annotated[DeviceRepository, Depends(get_device_repository)]
 
 
+def get_device_config_repository(db: DbSession) -> DeviceConfigRepository:
+    return DeviceConfigRepository(db)
+
+
+DeviceConfigRepositoryDep = Annotated[
+    DeviceConfigRepository, Depends(get_device_config_repository)
+]
+
+
+def get_device_config_service(
+    repo: DeviceConfigRepositoryDep, device_repo: DeviceRepositoryDep
+) -> DeviceConfigService:
+    return DeviceConfigService(repo, device_repo, config_publisher)
+
+
+DeviceConfigServiceDep = Annotated[
+    DeviceConfigService, Depends(get_device_config_service)
+]
+
+
 def get_device_service(
-    repo: DeviceRepositoryDep, classroom_repo: ClassroomRepositoryDep
+    repo: DeviceRepositoryDep,
+    classroom_repo: ClassroomRepositoryDep,
+    config_service: DeviceConfigServiceDep,
 ) -> DeviceService:
-    return DeviceService(repo, classroom_repo)
+    return DeviceService(repo, classroom_repo, config_service)
 
 
 DeviceServiceDep = Annotated[DeviceService, Depends(get_device_service)]

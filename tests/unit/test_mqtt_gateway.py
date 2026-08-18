@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from app.workers import measurement_consumer
+from app.workers import mqtt_gateway
 
 
 @dataclass
@@ -31,7 +31,7 @@ def fail_if_database_is_touched(monkeypatch: pytest.MonkeyPatch) -> None:
     def explode() -> None:
         raise AssertionError("poruka je stigla do baze iako je neispravna")
 
-    monkeypatch.setattr(measurement_consumer, "async_session", explode)
+    monkeypatch.setattr(mqtt_gateway, "async_session", explode)
 
 
 @pytest.mark.parametrize(
@@ -44,17 +44,17 @@ def fail_if_database_is_touched(monkeypatch: pytest.MonkeyPatch) -> None:
     ],
 )
 async def test_message_on_unexpected_topic_is_dropped(topic: str) -> None:
-    await measurement_consumer.handle_message(FakeMessage(topic, valid_body()))
+    await mqtt_gateway.handle_message(FakeMessage(topic, valid_body()))
 
 
 async def test_non_json_payload_is_dropped() -> None:
-    await measurement_consumer.handle_message(
+    await mqtt_gateway.handle_message(
         FakeMessage("classrooms/212/esp32-1", b"nije json")
     )
 
 
 async def test_payload_without_metrics_is_dropped() -> None:
-    await measurement_consumer.handle_message(
+    await mqtt_gateway.handle_message(
         FakeMessage(
             "classrooms/212/esp32-1",
             b'{"timestamp": "2026-08-08T12:00:00Z"}',
@@ -65,24 +65,24 @@ async def test_payload_without_metrics_is_dropped() -> None:
 async def test_payload_with_future_timestamp_is_dropped() -> None:
     future = (datetime.now(UTC) + timedelta(days=1)).isoformat()
 
-    await measurement_consumer.handle_message(
+    await mqtt_gateway.handle_message(
         FakeMessage("classrooms/212/esp32-1", valid_body(timestamp=future))
     )
 
 
 async def test_payload_with_impossible_value_is_dropped() -> None:
-    await measurement_consumer.handle_message(
+    await mqtt_gateway.handle_message(
         FakeMessage("classrooms/212/esp32-1", valid_body(humidity=250.0))
     )
 
 
 async def test_payload_with_unknown_field_is_dropped() -> None:
-    await measurement_consumer.handle_message(
+    await mqtt_gateway.handle_message(
         FakeMessage("classrooms/212/esp32-1", valid_body(temperatura=22.0))
     )
 
 
 async def test_non_bytes_payload_is_dropped() -> None:
-    await measurement_consumer.handle_message(
+    await mqtt_gateway.handle_message(
         FakeMessage("classrooms/212/esp32-1", None)
     )

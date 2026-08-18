@@ -8,13 +8,17 @@ from app.core.config import settings
 from app.core.database import async_session
 from app.core.exceptions import MeasurementRejectedError
 from app.core.mqtt import MQTTClient, broker_state, connect
+from app.core.publisher import Item, config_publisher
+from app.models.device import DeviceStatus
+from app.repositories.device_config_repo import DeviceConfigRepository
 from app.repositories.device_repo import DeviceRepository
 from app.repositories.measurement_repo import MeasurementRepository
 from app.schemas.measurement import MeasurementPayload
+from app.services.device_config_service import build_push
 from app.services.measurement_service import MeasurementService
-from app.utils.topics import MEASUREMENT_TOPIC_FILTER, parse_measurement_topic
+from app.utils.topics import MEASUREMENT_TOPIC_FILTER, config_topic, parse_measurement_topic
 
-logger = structlog.get_logger("app.mqtt.consumer")
+logger = structlog.get_logger("app.mqtt.gateway")
 
 
 async def handle_message(message: aiomqtt.Message) -> None:
@@ -76,19 +80,60 @@ async def consume(client: MQTTClient) -> None:
         await handle_message(message)
 
 
+async def drain(client: MQTTClient) -> None:
+    while True:
+        topic, payload = await config_publisher.get()
+        await client.publish(topic, payload, retain=True)
+
+
+async def config_snapshot() -> list[Item]:
+    async with async_session() as session:
+        rows = await DeviceConfigRepository(session).list_with_devices()
+        return [
+            (
+                config_topic(device.username),
+                build_push(config).model_dump()
+                if config is not None and device.status is DeviceStatus.ACTIVE
+                else None,
+            )
+            for device, config in rows
+        ]
+
+
+async def reconcile(client: MQTTClient) -> None:
+    items = await config_snapshot()
+    for topic, payload in items:
+        await client.publish(topic, payload, retain=True)
+    logger.info("config_reconciled", devices=len(items))
+
+
+async def pump(client: MQTTClient) -> None:
+    tasks = [
+        asyncio.create_task(consume(client)),
+        asyncio.create_task(drain(client)),
+    ]
+    try:
+        await asyncio.gather(*tasks)
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 async def run() -> None:
     delay = settings.mqtt_reconnect_seconds
     while True:
         try:
             async with connect() as client:
-                await consume(client)
+                await reconcile(client)
+                await pump(client)
         except asyncio.CancelledError:
-            logger.info("measurement_consumer_stopped")
+            logger.info("mqtt_gateway_stopped")
             raise
         except aiomqtt.MqttError as exc:
             broker_state.mark_disconnected(str(exc))
             logger.warning("mqtt_disconnected", error=str(exc), retry_in=delay)
         except Exception:
-            logger.exception("measurement_consumer_crashed", retry_in=delay)
+            logger.exception("mqtt_gateway_crashed", retry_in=delay)
 
         await asyncio.sleep(delay)

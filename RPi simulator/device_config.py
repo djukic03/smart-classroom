@@ -14,11 +14,16 @@ MAX_INTERVAL = 3600
 class RuntimeConfig:
     measurement_interval: int
     enabled: bool = True
+    version: int = 0
     sensors: dict[str, bool] = field(
         default_factory=lambda: dict.fromkeys(METRICS, True)
     )
 
     def apply(self, payload: bytes) -> bool:
+        if not payload:
+            logger.info("konfiguracija je uklonjena sa brokera, zadrzavam postojecu")
+            return False
+
         try:
             data = json.loads(payload)
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -29,6 +34,9 @@ class RuntimeConfig:
             logger.warning("konfiguracija nije objekat, zadrzavam postojecu")
             return False
 
+        if not self._accept_version(data.get("version")):
+            return False
+
         changed = False
         changed |= self._apply_interval(data.get("measurement_interval"))
         changed |= self._apply_enabled(data.get("enabled"))
@@ -36,12 +44,28 @@ class RuntimeConfig:
 
         if changed:
             logger.info(
-                "primenjena konfiguracija: interval=%ss enabled=%s senzori=%s",
+                "primenjena konfiguracija v%s: interval=%ss enabled=%s senzori=%s",
+                self.version,
                 self.measurement_interval,
                 self.enabled,
                 ",".join(name for name, on in self.sensors.items() if on) or "nijedan",
             )
         return changed
+
+    def _accept_version(self, value: object) -> bool:
+        if not isinstance(value, int) or isinstance(value, bool):
+            return True
+
+        if value <= self.version:
+            logger.info(
+                "ignorisem stariju konfiguraciju (verzija %s, trenutna %s)",
+                value,
+                self.version,
+            )
+            return False
+
+        self.version = value
+        return True
 
     def _apply_interval(self, value: object) -> bool:
         if not isinstance(value, int) or isinstance(value, bool):

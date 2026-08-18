@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     auth,
     classroom,
     device,
+    device_config,
     health,
     measurement,
     mqtt,
@@ -27,7 +28,7 @@ from app.core.exceptions import (
 )
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIdMiddleware
-from app.workers import measurement_consumer
+from app.workers import mqtt_gateway
 
 configure_logging()
 
@@ -35,7 +36,7 @@ configure_logging()
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     consumer: asyncio.Task[None] | None = None
     if settings.mqtt_consumer_enabled:
-        consumer = asyncio.create_task(measurement_consumer.run())
+        consumer = asyncio.create_task(mqtt_gateway.run())
 
     yield
 
@@ -112,6 +113,7 @@ app.include_router(health.router, prefix="/health")
 app.include_router(auth.router, prefix="/api/v1/auth")
 app.include_router(classroom.router, prefix="/api/v1/classrooms")
 app.include_router(device.router, prefix="/api/v1/devices")
+app.include_router(device_config.router, prefix="/api/v1/devices/{device_id}/config")
 app.include_router(
     measurement.router, prefix="/api/v1/classrooms/{classroom_id}/measurements"
 )
