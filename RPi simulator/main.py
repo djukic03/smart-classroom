@@ -5,6 +5,7 @@ import signal
 from collections import deque
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import aiomqtt
 from config import Settings
@@ -81,15 +82,26 @@ class Device:
         if not self._config.enabled:
             return
 
-        reading = self._sensors.read(self._config.sensors)
+        active = self._config.effective_sensors(self._local_now())
+        reading = self._sensors.read(active)
         if not reading:
-            logger.warning("svi senzori su iskljuceni, nema sta da se posalje")
+            logger.debug("nijedan senzor nije aktivan u ovom trenutku")
             return
 
         if len(self._buffer) == self._buffer.maxlen:
             logger.warning("bafer je pun, najstarije merenje se odbacuje")
 
         self._buffer.append({"timestamp": datetime.now(UTC).isoformat(), **reading})
+
+    def _local_now(self) -> datetime:
+        try:
+            return datetime.now(ZoneInfo(self._config.timezone))
+        except Exception:
+            logger.warning(
+                "nepoznata vremenska zona %s, koristim lokalno vreme",
+                self._config.timezone,
+            )
+            return datetime.now().astimezone()
 
     async def _flush(self, client: DeviceClient) -> None:
         while self._buffer:

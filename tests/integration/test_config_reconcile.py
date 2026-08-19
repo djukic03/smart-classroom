@@ -17,15 +17,35 @@ def gateway_session(engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch) -> Non
     )
 
 
+METRIC_NAMES = tuple(metric.value.lower() for metric in MetricEnum)
+
+
 def make_config(device_id: int, version: int = 3) -> DeviceConfig:
     return DeviceConfig(
         device_id=device_id,
         measurement_interval=30,
         enabled=True,
-        on_schedule=False,
         version=version,
-        sensors=[SensorConfig(metric_type=metric, enabled=True) for metric in MetricEnum],
+        sensors=[
+            SensorConfig(
+                metric_type=metric, enabled=True, on_schedule=False, schedules=[]
+            )
+            for metric in MetricEnum
+        ],
     )
+
+
+def expected_payload(version: int = 3) -> dict[str, object]:
+    return {
+        "version": version,
+        "measurement_interval": 30,
+        "enabled": True,
+        "timezone": "Europe/Belgrade",
+        "sensors": {
+            name: {"enabled": True, "on_schedule": False, "schedules": []}
+            for name in METRIC_NAMES
+        },
+    }
 
 
 async def test_snapshot_pushes_config_of_active_device(
@@ -41,24 +61,7 @@ async def test_snapshot_pushes_config_of_active_device(
 
     items = await mqtt_gateway.config_snapshot()
 
-    assert items == [
-        (
-            "devices/config/esp32-1",
-            {
-                "version": 3,
-                "measurement_interval": 30,
-                "enabled": True,
-                "sensors": {
-                    "co2": True,
-                    "temperature": True,
-                    "humidity": True,
-                    "illuminance": True,
-                    "sound": True,
-                    "occupancy": True,
-                },
-            },
-        )
-    ]
+    assert items == [("devices/config/esp32-1", expected_payload())]
 
 
 async def test_snapshot_clears_config_of_inactive_device(

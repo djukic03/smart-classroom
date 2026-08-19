@@ -5,6 +5,7 @@ from app.models.metric_enum import MetricEnum
 from app.schemas.device_config import (
     DeviceConfigRead,
     DeviceConfigUpdate,
+    ScheduleAssignment,
     SensorConfigUpdate,
 )
 
@@ -31,3 +32,10 @@ async def update_sensor(
     service: DeviceConfigServiceDep,
 ) -> object:
     return await service.update_sensor(device_id, metric, data)
+
+
+@router.put("/schedules", response_model=DeviceConfigRead)
+async def set_schedules(
+    device_id: int, data: ScheduleAssignment, service: DeviceConfigServiceDep
+) -> object:
+    return await service.set_schedules(device_id, data)

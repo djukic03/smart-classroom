@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.device import Device
 from app.models.device_config import DeviceConfig
+from app.models.sensor_config import SensorConfig
 
 ENTITY = "DeviceConfig"
 
@@ -18,7 +19,7 @@ class DeviceConfigRepository:
     async def get_by_device(self, device_id: int) -> DeviceConfig | None:
         stmt = (
             select(DeviceConfig)
-            .options(selectinload(DeviceConfig.sensors))
+            .options(selectinload(DeviceConfig.sensors).selectinload(SensorConfig.schedules))
             .where(DeviceConfig.device_id == device_id)
         )
         return (await self._db.scalars(stmt)).first()
@@ -27,7 +28,7 @@ class DeviceConfigRepository:
         stmt = (
             select(Device, DeviceConfig)
             .outerjoin(DeviceConfig, DeviceConfig.device_id == Device.id)
-            .options(selectinload(DeviceConfig.sensors))
+            .options(selectinload(DeviceConfig.sensors).selectinload(SensorConfig.schedules))
             .order_by(Device.id)
         )
         return (await self._db.execute(stmt)).all()

@@ -1,4 +1,5 @@
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,6 +47,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: SecretStr = SecretStr("")
     smtp_starttls: bool = True
+    schedule_timezone: str = "Europe/Belgrade"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -58,5 +60,15 @@ class Settings(BaseSettings):
                 "SECRET_KEY contains a placeholder value; generate one with `openssl rand -hex 32`"
             )
         return v
+
+    @field_validator("schedule_timezone")
+    @classmethod
+    def _known_timezone(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"SCHEDULE_TIMEZONE '{v}' nije poznata vremenska zona") from exc
+        return v
+
 
 settings = Settings()
