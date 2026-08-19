@@ -10,7 +10,8 @@ from app.models.measurement import Measurement
 ClassroomFactory = Callable[..., Awaitable[Any]]
 DeviceFactory = Callable[..., Awaitable[Any]]
 
-NOW = datetime.now(UTC).replace(microsecond=0)
+NOW = datetime.now(UTC).replace(second=0, microsecond=0)
+NOW -= timedelta(minutes=NOW.minute % 30)
 
 
 def url(classroom_id: int, suffix: str = "") -> str:
