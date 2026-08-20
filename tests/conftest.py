@@ -33,6 +33,7 @@ import app.models.device  # noqa: F401
 import app.models.device_config  # noqa: F401
 import app.models.measurement  # noqa: F401
 import app.models.password_reset_token  # noqa: F401
+import app.models.push_token  # noqa: F401
 import app.models.schedule  # noqa: F401
 import app.models.sensor_config  # noqa: F401
 import app.models.user  # noqa: F401

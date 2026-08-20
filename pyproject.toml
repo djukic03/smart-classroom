@@ -10,6 +10,7 @@ dependencies = [
     "alembic>=1.18.5",
     "asyncpg>=0.31.0",
     "fastapi[standard]>=0.140.0",
+    "httpx>=0.28.1",
     "pwdlib[argon2]>=0.3.0",
     "pydantic-settings>=2.14.2",
     "python-dotenv>=1.2.2",
@@ -66,7 +67,6 @@ asyncio_default_test_loop_scope = "session"
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",

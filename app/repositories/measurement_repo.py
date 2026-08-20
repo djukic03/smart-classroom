@@ -103,6 +103,18 @@ class MeasurementRepository:
         )
         return (await self._db.execute(stmt)).all()
 
+    async def recent_for_device(self, device_id: int, limit: int) -> Sequence[Row[Any]]:
+        stmt = (
+            select(
+                Measurement.timestamp,
+                *[getattr(Measurement, name) for name in METRIC_FIELDS],
+            )
+            .where(Measurement.device_id == device_id)
+            .order_by(Measurement.timestamp.desc())
+            .limit(limit)
+        )
+        return (await self._db.execute(stmt)).all()
+
     async def buckets(
         self,
         classroom_id: int,

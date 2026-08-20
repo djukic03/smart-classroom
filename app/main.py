@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.endpoints import (
+    anomaly,
     auth,
     classroom,
     device,
@@ -14,6 +15,7 @@ from app.api.v1.endpoints import (
     health,
     measurement,
     mqtt,
+    push_token,
     user,
 )
 from app.core.config import settings
@@ -28,21 +30,23 @@ from app.core.exceptions import (
 )
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIdMiddleware
-from app.workers import mqtt_gateway
+from app.workers import anomaly_notifier, mqtt_gateway
 
 configure_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    consumer: asyncio.Task[None] | None = None
+    tasks: list[asyncio.Task[None]] = []
     if settings.mqtt_consumer_enabled:
-        consumer = asyncio.create_task(mqtt_gateway.run())
+        tasks.append(asyncio.create_task(mqtt_gateway.run()))
+    if settings.anomaly_notify_enabled:
+        tasks.append(asyncio.create_task(anomaly_notifier.run()))
 
     yield
 
-    if consumer is not None:
-        consumer.cancel()
-        await asyncio.gather(consumer, return_exceptions=True)
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
     await dispose_engine()
 
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
@@ -117,5 +121,9 @@ app.include_router(device_config.router, prefix="/api/v1/devices/{device_id}/con
 app.include_router(
     measurement.router, prefix="/api/v1/classrooms/{classroom_id}/measurements"
 )
+app.include_router(
+    anomaly.router, prefix="/api/v1/classrooms/{classroom_id}/anomalies"
+)
+app.include_router(push_token.router, prefix="/api/v1/me/push-tokens")
 app.include_router(user.router, prefix="/api/v1/users")
 app.include_router(mqtt.router, prefix="/api/v1/mqtt")

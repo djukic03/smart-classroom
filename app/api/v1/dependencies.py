@@ -11,19 +11,23 @@ from app.core.exceptions import PermissionDeniedError, RateLimitedError
 from app.core.notifier import notifier
 from app.core.publisher import config_publisher
 from app.models.user import Role, User
+from app.repositories.anomaly_repo import AnomalyRepository
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.device_config_repo import DeviceConfigRepository
 from app.repositories.device_repo import DeviceRepository
 from app.repositories.measurement_repo import MeasurementRepository
 from app.repositories.password_reset_repo import PasswordResetRepository
+from app.repositories.push_token_repo import PushTokenRepository
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
+from app.services.anomaly_service import AnomalyService
 from app.services.classroom_service import ClassroomService
 from app.services.device_config_service import DeviceConfigService
 from app.services.device_service import DeviceService
 from app.services.measurement_service import MeasurementService
 from app.services.mqtt_service import MQTTService
 from app.services.password_reset_service import PasswordResetService
+from app.services.push_token_service import PushTokenService
 from app.services.session_service import SessionService
 from app.services.user_service import UserService
 from app.utils.network import HostAllowlist
@@ -254,6 +258,40 @@ def get_measurement_service(
 
 
 MeasurementServiceDep = Annotated[MeasurementService, Depends(get_measurement_service)]
+
+
+def get_anomaly_repository(db: DbSession) -> AnomalyRepository:
+    return AnomalyRepository(db)
+
+
+AnomalyRepositoryDep = Annotated[AnomalyRepository, Depends(get_anomaly_repository)]
+
+
+def get_anomaly_service(
+    repo: AnomalyRepositoryDep,
+    measurement_repo: MeasurementRepositoryDep,
+    classroom_repo: ClassroomRepositoryDep,
+) -> AnomalyService:
+    return AnomalyService(repo, measurement_repo, classroom_repo)
+
+
+AnomalyServiceDep = Annotated[AnomalyService, Depends(get_anomaly_service)]
+
+
+def get_push_token_repository(db: DbSession) -> PushTokenRepository:
+    return PushTokenRepository(db)
+
+
+PushTokenRepositoryDep = Annotated[
+    PushTokenRepository, Depends(get_push_token_repository)
+]
+
+
+def get_push_token_service(repo: PushTokenRepositoryDep) -> PushTokenService:
+    return PushTokenService(repo)
+
+
+PushTokenServiceDep = Annotated[PushTokenService, Depends(get_push_token_service)]
 
 
 def get_mqtt_service(repo: DeviceRepositoryDep) -> MQTTService:

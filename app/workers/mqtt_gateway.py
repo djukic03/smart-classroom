@@ -3,6 +3,7 @@ import asyncio
 import aiomqtt
 import structlog
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import async_session
@@ -10,10 +11,12 @@ from app.core.exceptions import MeasurementRejectedError
 from app.core.mqtt import MQTTClient, broker_state, connect
 from app.core.publisher import Item, config_publisher
 from app.models.device import DeviceStatus
+from app.repositories.anomaly_repo import AnomalyRepository
 from app.repositories.device_config_repo import DeviceConfigRepository
 from app.repositories.device_repo import DeviceRepository
 from app.repositories.measurement_repo import MeasurementRepository
 from app.schemas.measurement import MeasurementPayload
+from app.services.anomaly_service import AnomalyService
 from app.services.device_config_service import build_push
 from app.services.measurement_service import MeasurementService
 from app.utils.topics import MEASUREMENT_TOPIC_FILTER, config_topic, parse_measurement_topic
@@ -50,7 +53,9 @@ async def handle_message(message: aiomqtt.Message) -> None:
     async with async_session() as session:
         service = MeasurementService(DeviceRepository(session), MeasurementRepository(session))
         try:
-            await service.ingest(classroom_id, device_username, payload)
+            measurement = await service.ingest(classroom_id, device_username, payload)
+            if settings.anomaly_detection_enabled:
+                await detect_anomalies(session, measurement.device_id)
             await session.commit()
         except MeasurementRejectedError as exc:
             await session.rollback()
@@ -74,6 +79,16 @@ async def handle_message(message: aiomqtt.Message) -> None:
     )
 
 
+async def detect_anomalies(session: AsyncSession, device_id: int) -> None:
+    device = await DeviceRepository(session).get(device_id)
+    config = await DeviceConfigRepository(session).get_by_device(device_id)
+    if device is None or config is None:
+        return
+
+    service = AnomalyService(AnomalyRepository(session), MeasurementRepository(session))
+    await service.evaluate(device, config)
+
+
 async def consume(client: MQTTClient) -> None:
     await client.subscribe(MEASUREMENT_TOPIC_FILTER)
     async for message in client.messages:
@@ -92,7 +107,7 @@ async def config_snapshot() -> list[Item]:
         return [
             (
                 config_topic(device.username),
-                build_push(config).model_dump()
+                build_push(config).model_dump(mode="json")
                 if config is not None and device.status is DeviceStatus.ACTIVE
                 else None,
             )

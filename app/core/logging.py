@@ -18,6 +18,7 @@ def configure_logging() -> None:
 
     renderer: Processor
     if settings.log_format == "json":
+        shared.append(structlog.processors.dict_tracebacks)
         renderer = structlog.processors.JSONRenderer()
     else:
         renderer = structlog.dev.ConsoleRenderer()

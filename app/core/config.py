@@ -48,6 +48,17 @@ class Settings(BaseSettings):
     smtp_password: SecretStr = SecretStr("")
     smtp_starttls: bool = True
     schedule_timezone: str = "Europe/Belgrade"
+    anomaly_detection_enabled: bool = True
+    anomaly_trigger_samples: int = 2
+    anomaly_clear_samples: int = 2
+    anomaly_hysteresis_percent: float = 5.0
+    anomaly_notify_enabled: bool = True
+    anomaly_notify_interval_seconds: float = 30.0
+    anomaly_notify_batch: int = 20
+    push_backend: Literal["console", "expo"] = "console"
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+    expo_push_batch_size: int = 100
+    push_request_timeout_seconds: float = 15.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
