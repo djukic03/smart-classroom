@@ -1,6 +1,6 @@
 services:
   db:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.28.3-pg16
     container_name: db
     restart: always
     environment:

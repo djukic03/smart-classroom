@@ -17,6 +17,8 @@ from app.models import (  # noqa: F401
     device_config,
     measurement,
     metric_enum,
+    password_reset_token,
+    push_token,
     schedule,
     sensor_config,
     user,

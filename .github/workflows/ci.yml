@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint and type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+  
+      - name: uv setup
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: dependencies
+        run: uv sync --frozen
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Mypy
+        run: uv run mypy
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: timescale/timescaledb:2.28.3-pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: smart_classroom
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/smart_classroom
+      SECRET_KEY: ci-secret-0123456789abcdef0123456789abcdef
+      MQTT_USERNAME: ci
+      MQTT_PASSWORD: ci
+      TIMESCALEDB_TELEMETRY: "off"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: uv setup
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: dependencies
+        run: uv sync --frozen
+
+      - name: migrations
+        run: uv run alembic upgrade head
+
+      - name: check migrations
+        run: uv run alembic check
+
+      - name: Pytest
+        run: uv run pytest -q
