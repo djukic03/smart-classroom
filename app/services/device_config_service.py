@@ -3,6 +3,7 @@ from collections import defaultdict
 from app.core.config import settings
 from app.core.exceptions import InvalidParameterError, NotFoundError
 from app.core.publisher import ConfigPublisher
+from app.models.audit_log import AuditEntityType
 from app.models.device import Device, DeviceStatus
 from app.models.device_config import DeviceConfig
 from app.models.metric_enum import MetricEnum
@@ -19,6 +20,7 @@ from app.schemas.device_config import (
     SensorConfigUpdate,
     SensorPush,
 )
+from app.services.audit_service import SYSTEM, AuditActor, AuditService
 from app.utils.topics import config_topic
 
 ENTITY = "DeviceConfig"
@@ -52,10 +54,12 @@ class DeviceConfigService:
         repo: DeviceConfigRepository,
         device_repo: DeviceRepository,
         publisher: ConfigPublisher,
+        audit: AuditService | None = None,
     ) -> None:
         self._repo = repo
         self._device_repo = device_repo
         self._publisher = publisher
+        self._audit = audit
 
     async def ensure(self, device_id: int) -> DeviceConfig:
         _, config = await self._load(device_id)
@@ -64,7 +68,9 @@ class DeviceConfigService:
     async def get(self, device_id: int) -> DeviceConfig:
         return await self.ensure(device_id)
 
-    async def update(self, device_id: int, data: DeviceConfigUpdate) -> DeviceConfig:
+    async def update(
+        self, device_id: int, data: DeviceConfigUpdate, actor: AuditActor = SYSTEM
+    ) -> DeviceConfig:
         device, config = await self._load(device_id)
 
         if data.measurement_interval is not None:
@@ -72,10 +78,18 @@ class DeviceConfigService:
         if data.enabled is not None:
             config.enabled = data.enabled
 
+        if self._audit is not None:
+            await self._audit.updated(
+                AuditEntityType.DEVICE_CONFIG, config.id, config, actor
+            )
         return await self._bump_and_publish(device, config)
 
     async def update_sensor(
-        self, device_id: int, metric: MetricEnum, data: SensorConfigUpdate
+        self,
+        device_id: int,
+        metric: MetricEnum,
+        data: SensorConfigUpdate,
+        actor: AuditActor = SYSTEM,
     ) -> DeviceConfig:
         device, config = await self._load(device_id)
         sensor = self._sensor(config, metric)
@@ -90,10 +104,19 @@ class DeviceConfigService:
             sensor.max_threshold = data.max_threshold
 
         _validate_thresholds(sensor)
+
+        if self._audit is not None:
+            await self._audit.updated(
+                AuditEntityType.SENSOR_CONFIG,
+                sensor.id,
+                sensor,
+                actor,
+                description=f"{device.username} / {metric.value}",
+            )
         return await self._bump_and_publish(device, config)
 
     async def set_schedules(
-        self, device_id: int, data: ScheduleAssignment
+        self, device_id: int, data: ScheduleAssignment, actor: AuditActor = SYSTEM
     ) -> DeviceConfig:
         device, config = await self._load(device_id)
         _validate_windows(data.schedules)
@@ -114,6 +137,15 @@ class DeviceConfigService:
                 for window in data.schedules
             ]
 
+        if self._audit is not None:
+            metrics = ", ".join(metric.value for metric in data.metrics)
+            await self._audit.noted(
+                AuditEntityType.SCHEDULE,
+                config.id,
+                actor,
+                f"{device.username}: {metrics} -> {len(data.schedules)} termina, "
+                f"on_schedule={data.on_schedule}",
+            )
         return await self._bump_and_publish(device, config)
 
     async def republish(self, device: Device) -> None:

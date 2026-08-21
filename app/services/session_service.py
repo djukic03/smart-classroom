@@ -6,18 +6,31 @@ from app.core.security import generate_token, hash_token
 from app.models.access_token import AccessToken
 from app.models.user import User
 from app.repositories.token_repo import TokenRepository
+from app.services.audit_service import AuditActor, AuditService
 from app.services.user_service import UserService
 
 ENTITY = "Session"
 
 
 class SessionService:
-    def __init__(self, user_service: UserService, token_repo: TokenRepository) -> None:
+    def __init__(
+        self,
+        user_service: UserService,
+        token_repo: TokenRepository,
+        audit: AuditService | None = None,
+    ) -> None:
         self._user_service = user_service
         self._token_repo = token_repo
+        self._audit = audit
 
     async def login(self, email: str, password: str, device_name: str) -> str:
-        user = await self._user_service.authenticate(email, password)
+        try:
+            user = await self._user_service.authenticate(email, password)
+        except AuthenticationError as exc:
+            if self._audit is not None:
+                await self._audit.login_failed(email, str(exc))
+            raise
+
         await self._token_repo.delete_expired_for_user(user.id)
 
         raw_token = generate_token()
@@ -30,11 +43,18 @@ class SessionService:
                 + timedelta(minutes=settings.access_token_expire_minutes),
             )
         )
+
+        if self._audit is not None:
+            await self._audit.logged_in(AuditActor(user.id, user.email), device_name)
         return raw_token
 
     async def logout(self, raw_token: str) -> None:
         token = await self._token_repo.get_with_user(hash_token(raw_token))
         if token is not None:
+            if self._audit is not None:
+                await self._audit.logged_out(
+                    AuditActor(token.user_id, token.user.email)
+                )
             await self._token_repo.delete(token)
 
     async def resolve_token(self, raw_token: str) -> User:

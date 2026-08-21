@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends
 
-from app.api.v1.dependencies import DeviceConfigServiceDep, require_admin
+from app.api.v1.dependencies import (
+    AuditActorDep,
+    DeviceConfigServiceDep,
+    require_admin,
+)
 from app.models.metric_enum import MetricEnum
 from app.schemas.device_config import (
     DeviceConfigRead,
@@ -19,9 +23,12 @@ async def get_config(device_id: int, service: DeviceConfigServiceDep) -> object:
 
 @router.patch("", response_model=DeviceConfigRead)
 async def update_config(
-    device_id: int, data: DeviceConfigUpdate, service: DeviceConfigServiceDep
+    device_id: int,
+    data: DeviceConfigUpdate,
+    service: DeviceConfigServiceDep,
+    actor: AuditActorDep,
 ) -> object:
-    return await service.update(device_id, data)
+    return await service.update(device_id, data, actor)
 
 
 @router.put("/sensors/{metric}", response_model=DeviceConfigRead)
@@ -30,12 +37,16 @@ async def update_sensor(
     metric: MetricEnum,
     data: SensorConfigUpdate,
     service: DeviceConfigServiceDep,
+    actor: AuditActorDep,
 ) -> object:
-    return await service.update_sensor(device_id, metric, data)
+    return await service.update_sensor(device_id, metric, data, actor)
 
 
 @router.put("/schedules", response_model=DeviceConfigRead)
 async def set_schedules(
-    device_id: int, data: ScheduleAssignment, service: DeviceConfigServiceDep
+    device_id: int,
+    data: ScheduleAssignment,
+    service: DeviceConfigServiceDep,
+    actor: AuditActorDep,
 ) -> object:
-    return await service.set_schedules(device_id, data)
+    return await service.set_schedules(device_id, data, actor)

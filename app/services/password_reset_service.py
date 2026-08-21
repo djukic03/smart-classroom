@@ -9,6 +9,7 @@ from app.core.security import generate_token, hash_token
 from app.models.password_reset_token import PasswordResetToken
 from app.repositories.password_reset_repo import PasswordResetRepository
 from app.repositories.user_repo import UserRepository
+from app.services.audit_service import AuditActor
 from app.services.user_service import UserService
 
 ENTITY = "PasswordReset"
@@ -67,7 +68,11 @@ class PasswordResetService:
 
         await self._repo.mark_used(token)
         await self._repo.invalidate_all_for_user(token.user_id)
-        await self._user_service.set_password(token.user_id, new_password)
+        await self._user_service.set_password(
+            token.user_id,
+            new_password,
+            AuditActor(token.user_id, token.user.email),
+        )
 
         logger.info("password_reset_completed", user_id=token.user_id)
 

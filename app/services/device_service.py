@@ -2,10 +2,12 @@ from collections.abc import Sequence
 
 from app.core.exceptions import AlreadyExistsError, NotFoundError
 from app.core.security import generate_token, hash_password
+from app.models.audit_log import AuditEntityType
 from app.models.device import Device, DeviceStatus
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.device_repo import DeviceRepository
 from app.schemas.device import DeviceCreate, DeviceUpdate
+from app.services.audit_service import SYSTEM, AuditActor, AuditService
 from app.services.device_config_service import DeviceConfigService
 
 ENTITY = "Device"
@@ -18,10 +20,12 @@ class DeviceService:
         repo: DeviceRepository,
         classroom_repo: ClassroomRepository,
         config_service: DeviceConfigService | None = None,
+        audit: AuditService | None = None,
     ) -> None:
         self._repo = repo
         self._classroom_repo = classroom_repo
         self._config_service = config_service
+        self._audit = audit
 
     async def get(self, device_id: int) -> Device:
         device = await self._repo.get(device_id)
@@ -34,7 +38,9 @@ class DeviceService:
             await self._require_classroom(classroom_id)
         return await self._repo.list(classroom_id)
 
-    async def create(self, data: DeviceCreate) -> tuple[Device, str]:
+    async def create(
+        self, data: DeviceCreate, actor: AuditActor = SYSTEM
+    ) -> tuple[Device, str]:
         await self._require_classroom(data.classroom_id)
 
         if await self._repo.get_by_username(data.username) is not None:
@@ -52,10 +58,14 @@ class DeviceService:
 
         if self._config_service is not None:
             await self._config_service.ensure(device.id)
+        if self._audit is not None:
+            await self._audit.created(AuditEntityType.DEVICE, device.id, actor, device)
 
         return device, secret
 
-    async def update(self, device_id: int, data: DeviceUpdate) -> Device:
+    async def update(
+        self, device_id: int, data: DeviceUpdate, actor: AuditActor = SYSTEM
+    ) -> Device:
         device = await self.get(device_id)
 
         if data.classroom_id is not None and data.classroom_id != device.classroom_id:
@@ -66,6 +76,8 @@ class DeviceService:
         if data.status is not None:
             device.status = data.status
 
+        if self._audit is not None:
+            await self._audit.updated(AuditEntityType.DEVICE, device.id, device, actor)
         await self._repo.save(device)
 
         if status_changed and self._config_service is not None:
@@ -73,16 +85,28 @@ class DeviceService:
 
         return device
 
-    async def regenerate_secret(self, device_id: int) -> tuple[Device, str]:
+    async def regenerate_secret(
+        self, device_id: int, actor: AuditActor = SYSTEM
+    ) -> tuple[Device, str]:
         device = await self.get(device_id)
         secret = generate_token()
         device.hashed_password = hash_password(secret)
+
+        if self._audit is not None:
+            await self._audit.noted(
+                AuditEntityType.DEVICE,
+                device.id,
+                actor,
+                "Regenerisan pristupni kljuc uredjaja",
+            )
         await self._repo.save(device)
         return device, secret
 
-    async def delete(self, device_id: int) -> None:
+    async def delete(self, device_id: int, actor: AuditActor = SYSTEM) -> None:
         device = await self.get(device_id)
 
+        if self._audit is not None:
+            await self._audit.deleted(AuditEntityType.DEVICE, device.id, actor, device)
         if self._config_service is not None:
             self._config_service.clear(device)
 

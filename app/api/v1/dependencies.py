@@ -12,6 +12,7 @@ from app.core.notifier import notifier
 from app.core.publisher import config_publisher
 from app.models.user import Role, User
 from app.repositories.anomaly_repo import AnomalyRepository
+from app.repositories.audit_repo import AuditRepository
 from app.repositories.classroom_repo import ClassroomRepository
 from app.repositories.device_config_repo import DeviceConfigRepository
 from app.repositories.device_repo import DeviceRepository
@@ -21,6 +22,7 @@ from app.repositories.push_token_repo import PushTokenRepository
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.services.anomaly_service import AnomalyService
+from app.services.audit_service import AuditActor, AuditService
 from app.services.classroom_service import ClassroomService
 from app.services.device_config_service import DeviceConfigService
 from app.services.device_service import DeviceService
@@ -113,6 +115,20 @@ def require_mqtt_hook_client(request: Request) -> None:
     raise PermissionDeniedError("Endpoint je dostupan samo MQTT brokeru")
 
 
+def get_audit_repository(db: DbSession) -> AuditRepository:
+    return AuditRepository(db)
+
+
+AuditRepositoryDep = Annotated[AuditRepository, Depends(get_audit_repository)]
+
+
+def get_audit_service(repo: AuditRepositoryDep) -> AuditService:
+    return AuditService(repo)
+
+
+AuditServiceDep = Annotated[AuditService, Depends(get_audit_service)]
+
+
 def get_classroom_repository(db: DbSession) -> ClassroomRepository:
     return ClassroomRepository(db)
 
@@ -120,8 +136,10 @@ def get_classroom_repository(db: DbSession) -> ClassroomRepository:
 ClassroomRepositoryDep = Annotated[ClassroomRepository, Depends(get_classroom_repository)]
 
 
-def get_classroom_service(repo: ClassroomRepositoryDep) -> ClassroomService:
-    return ClassroomService(repo)
+def get_classroom_service(
+    repo: ClassroomRepositoryDep, audit: AuditServiceDep
+) -> ClassroomService:
+    return ClassroomService(repo, audit)
 
 
 ClassroomServiceDep = Annotated[ClassroomService, Depends(get_classroom_service)]
@@ -142,18 +160,20 @@ TokenRepositoryDep = Annotated[TokenRepository, Depends(get_token_repository)]
 
 
 def get_user_service(
-    repo: UserRepositoryDep, token_repo: TokenRepositoryDep
+    repo: UserRepositoryDep, token_repo: TokenRepositoryDep, audit: AuditServiceDep
 ) -> UserService:
-    return UserService(repo, token_repo)
+    return UserService(repo, token_repo, audit)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 def get_session_service(
-    user_service: UserServiceDep, token_repo: TokenRepositoryDep
+    user_service: UserServiceDep,
+    token_repo: TokenRepositoryDep,
+    audit: AuditServiceDep,
 ) -> SessionService:
-    return SessionService(user_service, token_repo)
+    return SessionService(user_service, token_repo, audit)
 
 
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
@@ -202,6 +222,13 @@ async def require_admin(user: CurrentUser) -> User:
 AdminUser = Annotated[User, Depends(require_admin)]
 
 
+async def get_audit_actor(user: CurrentUser) -> AuditActor:
+    return AuditActor(user.id, user.email)
+
+
+AuditActorDep = Annotated[AuditActor, Depends(get_audit_actor)]
+
+
 def get_device_repository(db: DbSession) -> DeviceRepository:
     return DeviceRepository(db)
 
@@ -219,9 +246,11 @@ DeviceConfigRepositoryDep = Annotated[
 
 
 def get_device_config_service(
-    repo: DeviceConfigRepositoryDep, device_repo: DeviceRepositoryDep
+    repo: DeviceConfigRepositoryDep,
+    device_repo: DeviceRepositoryDep,
+    audit: AuditServiceDep,
 ) -> DeviceConfigService:
-    return DeviceConfigService(repo, device_repo, config_publisher)
+    return DeviceConfigService(repo, device_repo, config_publisher, audit)
 
 
 DeviceConfigServiceDep = Annotated[
@@ -233,8 +262,9 @@ def get_device_service(
     repo: DeviceRepositoryDep,
     classroom_repo: ClassroomRepositoryDep,
     config_service: DeviceConfigServiceDep,
+    audit: AuditServiceDep,
 ) -> DeviceService:
-    return DeviceService(repo, classroom_repo, config_service)
+    return DeviceService(repo, classroom_repo, config_service, audit)
 
 
 DeviceServiceDep = Annotated[DeviceService, Depends(get_device_service)]

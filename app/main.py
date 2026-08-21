@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.endpoints import (
     anomaly,
+    audit,
     auth,
     classroom,
     device,
@@ -125,5 +126,6 @@ app.include_router(
     anomaly.router, prefix="/api/v1/classrooms/{classroom_id}/anomalies"
 )
 app.include_router(push_token.router, prefix="/api/v1/me/push-tokens")
+app.include_router(audit.router, prefix="/api/v1/audit-logs")
 app.include_router(user.router, prefix="/api/v1/users")
 app.include_router(mqtt.router, prefix="/api/v1/mqtt")

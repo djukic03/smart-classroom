@@ -2,7 +2,7 @@ import enum
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -13,6 +13,7 @@ class AuditAction(str, enum.Enum):
     UPDATE = "UPDATE"
     DELETE = "DELETE"
     LOGIN = "LOGIN"
+    LOGIN_FAILED = "LOGIN_FAILED"
     LOGOUT = "LOGOUT"
 
 
@@ -29,10 +30,12 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     __table_args__ = (
         Index("ix_audit_logs_entity", "entity_type", "entity_id"),
+        Index("ix_audit_logs_timestamp", "timestamp"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    actor_email: Mapped[str | None] = mapped_column(String(255))
     action: Mapped[AuditAction] = mapped_column(Enum(AuditAction), nullable=False)
     entity_type: Mapped[AuditEntityType] = mapped_column(Enum(AuditEntityType), nullable=False)
     entity_id: Mapped[int | None] = mapped_column()

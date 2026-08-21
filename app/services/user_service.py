@@ -7,18 +7,26 @@ from app.core.exceptions import (
     PermissionDeniedError,
 )
 from app.core.security import hash_password, verify_password
+from app.models.audit_log import AuditEntityType
 from app.models.user import Role, User
 from app.repositories.token_repo import TokenRepository
 from app.repositories.user_repo import UserRepository
 from app.schemas.user import UserAdminCreate, UserCreate, UserUpdate
+from app.services.audit_service import SYSTEM, AuditActor, AuditService
 
 ENTITY = "User"
 
 
 class UserService:
-    def __init__(self, repo: UserRepository, token_repo: TokenRepository) -> None:
+    def __init__(
+        self,
+        repo: UserRepository,
+        token_repo: TokenRepository,
+        audit: AuditService | None = None,
+    ) -> None:
         self._repo = repo
         self._token_repo = token_repo
+        self._audit = audit
 
     async def register(self, data: UserCreate) -> User:
         if await self._repo.get_by_email(data.email) is not None:
@@ -57,10 +65,13 @@ class UserService:
     async def list_users(self) -> Sequence[User]:
         return await self._repo.list()
 
-    async def create_user(self, data: UserAdminCreate) -> User:
+    async def create_user(
+        self, data: UserAdminCreate, actor: AuditActor = SYSTEM
+    ) -> User:
         if await self._repo.get_by_email(data.email) is not None:
             raise AlreadyExistsError(ENTITY, "email", data.email)
-        return await self._repo.add(
+
+        user = await self._repo.add(
             User(
                 email=data.email,
                 hashed_password=hash_password(data.password),
@@ -68,13 +79,16 @@ class UserService:
                 is_active=data.is_active,
             )
         )
+        if self._audit is not None:
+            await self._audit.created(AuditEntityType.USER, user.id, actor, user)
+        return user
 
     async def update_user(
-        self, user_id: int, data: UserUpdate, acting_admin_id: int
+        self, user_id: int, data: UserUpdate, actor: AuditActor
     ) -> User:
         user = await self.get_user(user_id)
 
-        if user.id == acting_admin_id:
+        if user.id == actor.user_id:
             if data.role is not None and data.role is not Role.ADMIN:
                 raise PermissionDeniedError(
                     "Ne mozete sebi oduzeti administratorska prava"
@@ -90,19 +104,31 @@ class UserService:
             if not data.is_active:
                 await self._token_repo.delete_all_for_user(user.id)
 
+        if self._audit is not None:
+            await self._audit.updated(AuditEntityType.USER, user.id, user, actor)
         return await self._repo.save(user)
 
-    async def set_password(self, user_id: int, new_password: str) -> User:
+    async def set_password(
+        self, user_id: int, new_password: str, actor: AuditActor = SYSTEM
+    ) -> User:
         user = await self.get_user(user_id)
         user.hashed_password = hash_password(new_password)
+
+        if self._audit is not None:
+            await self._audit.noted(
+                AuditEntityType.USER, user.id, actor, "Promenjena lozinka"
+            )
         await self._repo.save(user)
         await self._token_repo.delete_all_for_user(user.id)
         return user
 
-    async def delete_user(self, user_id: int, acting_admin_id: int) -> None:
+    async def delete_user(self, user_id: int, actor: AuditActor) -> None:
         user = await self.get_user(user_id)
-        if user.id == acting_admin_id:
+        if user.id == actor.user_id:
             raise PermissionDeniedError("Ne mozete obrisati sopstveni nalog")
+
+        if self._audit is not None:
+            await self._audit.deleted(AuditEntityType.USER, user.id, actor, user)
 
         await self._token_repo.delete_all_for_user(user.id)
         await self._repo.delete(user)
