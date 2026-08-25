@@ -1,0 +1,273 @@
+@import 'tailwindcss';
+@import './fonts.css';
+
+/*
+ * Ground is cool paper, not warm cream: the light of a north-facing classroom
+ * rather than the beige-and-brass palette every generated "premium" interface
+ * reaches for. Ink carries a faint green undertone, the only thing kept from
+ * the chalkboard the room actually has on its wall.
+ *
+ * Status colours are dark on light and light on ink, so they read as sober
+ * signal rather than neon. Nothing else on screen is allowed to be coloured,
+ * which is what makes them legible as warnings.
+ *
+ * SHAPE RULE (one system, applied everywhere):
+ *   sheets and surfaces  -> rounded-list  (18px)
+ *   controls and fields  -> rounded-field (12px)
+ *   chips and buttons    -> rounded-full
+ */
+@theme {
+  --color-paper: #eef1f0;
+  --color-paper-2: #e4e8e6;
+  --color-surface: #f9fbfa;
+  --color-line: rgb(16 20 18 / 10%);
+  --color-line-soft: rgb(16 20 18 / 6%);
+
+  --color-ink: #101412;
+  --color-ink-2: #3a4441;
+  --color-ink-3: #626c68;
+
+  --color-good: #0e6b52;
+  --color-watch: #9c5600;
+  --color-alarm: #b3261e;
+  --color-idle: #626c68;
+
+  --color-good-soft: rgb(14 107 82 / 10%);
+  --color-watch-soft: rgb(156 86 0 / 12%);
+  --color-alarm-soft: rgb(179 38 30 / 12%);
+  --color-idle-soft: rgb(98 108 104 / 10%);
+
+  --font-ui: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-data: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --text-small: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-title: 1.0625rem;
+  --text-display: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+
+  --radius-field: 12px;
+  --radius-list: 18px;
+
+  --breakpoint-tablet: 56rem;
+
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-enter: enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0);
+    }
+  }
+
+  @keyframes shimmer {
+    to {
+      background-position: -240% 0;
+    }
+  }
+}
+
+/*
+ * Dark is a real second design, not an inversion: the same hue that reads
+ * sober on paper reads muddy on ink. Utilities compile to var(--color-*), so
+ * reassigning the variables here re-themes every utility at runtime, and the
+ * three-way choice (system / explicit light / explicit dark) survives, which
+ * a two-state `dark:` variant could not express.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-paper: #0f1211;
+    --color-paper-2: #171b1a;
+    --color-surface: #161a19;
+    --color-line: rgb(236 239 238 / 12%);
+    --color-line-soft: rgb(236 239 238 / 7%);
+
+    --color-ink: #ecefee;
+    --color-ink-2: #a2ada9;
+    --color-ink-3: #78837f;
+
+    --color-good: #4fc49c;
+    --color-watch: #e9a23b;
+    --color-alarm: #ff6b5a;
+    --color-idle: #78837f;
+
+    --color-good-soft: rgb(79 196 156 / 14%);
+    --color-watch-soft: rgb(233 162 59 / 16%);
+    --color-alarm-soft: rgb(255 107 90 / 16%);
+    --color-idle-soft: rgb(120 131 127 / 14%);
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-paper: #0f1211;
+  --color-paper-2: #171b1a;
+  --color-surface: #161a19;
+  --color-line: rgb(236 239 238 / 12%);
+  --color-line-soft: rgb(236 239 238 / 7%);
+
+  --color-ink: #ecefee;
+  --color-ink-2: #a2ada9;
+  --color-ink-3: #78837f;
+
+  --color-good: #4fc49c;
+  --color-watch: #e9a23b;
+  --color-alarm: #ff6b5a;
+  --color-idle: #78837f;
+
+  --color-good-soft: rgb(79 196 156 / 14%);
+  --color-watch-soft: rgb(233 162 59 / 16%);
+  --color-alarm-soft: rgb(255 107 90 / 16%);
+  --color-idle-soft: rgb(120 131 127 / 14%);
+}
+
+/*
+ * One severity grammar. Components read --status and never name a status
+ * colour directly, so retuning a threshold cannot drift the palette. This is
+ * contextual inheritance, the one thing a utility class cannot express: the
+ * value depends on an ancestor's attribute.
+ */
+:root {
+  --status: var(--color-idle);
+  --status-soft: var(--color-idle-soft);
+
+  /* Page gutter that clears the notch. */
+  --gutter: max(1.25rem, env(safe-area-inset-left));
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-status='ok'] {
+  --status: var(--color-good);
+  --status-soft: var(--color-good-soft);
+}
+[data-status='watch'] {
+  --status: var(--color-watch);
+  --status-soft: var(--color-watch-soft);
+}
+[data-status='alarm'] {
+  --status: var(--color-alarm);
+  --status-soft: var(--color-alarm-soft);
+}
+[data-status='unknown'] {
+  --status: var(--color-idle);
+  --status-soft: var(--color-idle-soft);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+    background-color: var(--color-paper);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-ui);
+    font-size: var(--text-body);
+    line-height: 1.45;
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    overflow-wrap: break-word;
+
+    /* Standalone PWA hygiene: no rubber-band reveal behind the app, no grey
+       flash on tap, no 300ms click delay. */
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2 {
+    font-weight: 560;
+    line-height: 1.2;
+    letter-spacing: -0.014em;
+  }
+
+  button {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  svg {
+    display: block;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: var(--radius-field);
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+}
+
+/* Readouts must not reflow as digits tick over. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'ss01';
+}
+
+/*
+ * Hairlines between list items. Kept here rather than inline because the
+ * tablet grid needs nth-child logic: rows 1 and 2 sit at the top of their own
+ * column and must not take a rule above them.
+ */
+@utility list-rules {
+  & > * + * {
+    box-shadow: inset 0 1px 0 var(--color-line-soft);
+  }
+
+  @media (width >= 56rem) {
+    & > * + * {
+      box-shadow: none;
+    }
+
+    & > :nth-child(n + 3) {
+      box-shadow: inset 0 1px 0 var(--color-line-soft);
+    }
+
+    & > :nth-child(2n) {
+      box-shadow: inset 1px 0 0 var(--color-line-soft);
+    }
+
+    & > :nth-child(2n):nth-child(n + 3) {
+      box-shadow:
+        inset 1px 0 0 var(--color-line-soft),
+        inset 0 1px 0 var(--color-line-soft);
+    }
+  }
+}
+
+@utility skeleton {
+  background:
+    linear-gradient(
+        100deg,
+        transparent 22%,
+        var(--color-paper-2) 42%,
+        transparent 62%
+      )
+      var(--color-paper-2);
+  background-size: 240% 100%;
+  animation: var(--animate-shimmer);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
